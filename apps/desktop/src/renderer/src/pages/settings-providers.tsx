@@ -32,6 +32,7 @@ import {
   GROQ_TTS_VOICES_ARABIC,
   GEMINI_TTS_MODELS,
   GEMINI_TTS_VOICES,
+  LOCAL_TTS_VOICES,
 } from "@shared/index"
 
 // Badge component to show which features are using this provider
@@ -113,7 +114,7 @@ export function Component() {
 
   // Compute which providers are actively being used for each function
   const activeProviders = useMemo(() => {
-    if (!configQuery.data) return { openai: [], groq: [], gemini: [] }
+    if (!configQuery.data) return { openai: [], groq: [], gemini: [], local: [] }
 
     const stt = configQuery.data.sttProviderId || "openai"
     const transcript = configQuery.data.transcriptPostProcessingProviderId || "openai"
@@ -121,6 +122,10 @@ export function Component() {
     const tts = configQuery.data.ttsProviderId || "openai"
 
     return {
+      local: [
+        ...(stt === "local" ? [{ label: "STT", icon: Mic }] : []),
+        ...(tts === "local" ? [{ label: "TTS", icon: Volume2 }] : []),
+      ],
       openai: [
         ...(stt === "openai" ? [{ label: "STT", icon: Mic }] : []),
         ...(transcript === "openai" ? [{ label: "Transcript", icon: FileText }] : []),
@@ -142,6 +147,7 @@ export function Component() {
   }, [configQuery.data])
 
   // Determine which providers are active (selected for at least one feature)
+  const isLocalActive = activeProviders.local.length > 0
   const isGroqActive = activeProviders.groq.length > 0
   const isGeminiActive = activeProviders.gemini.length > 0
 
@@ -195,6 +201,69 @@ export function Component() {
             icon={Volume2}
           />
         </ControlGroup>
+
+        {/* Local Provider Section - shown when local STT or TTS is selected */}
+        {isLocalActive && (
+          <div className="rounded-lg border border-primary/30 bg-primary/5">
+            <div className="px-3 py-2 flex items-center justify-between w-full">
+              <span className="flex items-center gap-2 text-sm font-semibold">
+                Local (On-Device)
+                <CheckCircle2 className="h-4 w-4 text-primary" />
+              </span>
+              <div className="flex gap-1.5 flex-wrap justify-end">
+                {activeProviders.local.map((badge) => (
+                  <ActiveProviderBadge key={badge.label} label={badge.label} icon={badge.icon} />
+                ))}
+              </div>
+            </div>
+            <div className="divide-y border-t">
+              <div className="px-3 py-2 bg-muted/30 border-b">
+                <p className="text-xs text-muted-foreground">
+                  Zero API keys required. Uses on-device models for privacy and offline operation.
+                </p>
+              </div>
+
+              {/* Local STT Info */}
+              {configQuery.data.sttProviderId === "local" && (
+                <div className="px-3 py-2">
+                  <span className="text-sm font-medium">Speech-to-Text (FluidAudio)</span>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Uses FluidAudio Parakeet - runs ~190x real-time on Apple Silicon. Requires macOS 14.0+.
+                  </p>
+                </div>
+              )}
+
+              {/* Local TTS Voice Selection */}
+              {configQuery.data.ttsProviderId === "local" && (
+                <div className="border-t pt-2">
+                  <div className="px-3 pb-2">
+                    <span className="text-sm font-medium">Text-to-Speech (Kitten TTS)</span>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      25MB CPU-only model. 24kHz audio output.
+                    </p>
+                  </div>
+                  <Control label={<ControlLabel label="TTS Voice" tooltip="Choose the voice for local Kitten TTS" />} className="px-3">
+                    <Select
+                      value={configQuery.data.localTtsVoice || "expr-voice-2-f"}
+                      onValueChange={(value) => saveConfig({ localTtsVoice: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {LOCAL_TTS_VOICES.map((voice) => (
+                          <SelectItem key={voice.value} value={voice.value}>
+                            {voice.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Control>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* OpenAI Compatible Provider Section */}
         <div className={`rounded-lg border ${activeProviders.openai.length > 0 ? 'border-primary/30 bg-primary/5' : ''}`}>
