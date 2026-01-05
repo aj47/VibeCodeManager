@@ -63,7 +63,7 @@ import { agentSessionTracker } from "./agent-session-tracker"
 import { messageQueueService } from "./message-queue-service"
 import { profileService } from "./profile-service"
 import { acpService, ACPRunRequest } from "./acp-service"
-import { processVoiceCommand, isVoicePipelineAvailable } from "./voice-agent-pipeline"
+import { processVoiceCommand, processTextCommand, isVoicePipelineAvailable } from "./voice-agent-pipeline"
 import { workspaceManager, Workspace, WorkspaceSession } from "./workspace-manager"
 
 async function initializeMcpWithProgress(config: Config, sessionId: string): Promise<void> {
@@ -1176,8 +1176,47 @@ export const router = {
     }>()
     .action(async ({ input }) => {
       const config = configStore.get()
-        
-      // Create or get conversation ID
+
+      // If voiceToClaudeCodeEnabled, route directly to Claude Code via ACP
+      if (config.voiceToClaudeCodeEnabled) {
+        const pipelineStatus = isVoicePipelineAvailable()
+        if (pipelineStatus.hasAgent) {
+          // Use Claude Code pipeline for text input
+          processTextCommand(input.text, {
+            speakResponse: config.ttsEnabled && config.ttsAutoPlay,
+          })
+            .then((result) => {
+              if (result.success && result.response) {
+                // Save to history
+                const history = getRecordingHistory()
+                const item: RecordingHistoryItem = {
+                  id: Date.now().toString(),
+                  createdAt: Date.now(),
+                  duration: 0,
+                  transcript: result.response,
+                }
+                history.push(item)
+                saveRecordingsHitory(history)
+
+                const main = WINDOWS.get("main")
+                if (main) {
+                  getRendererHandlers<RendererHandlers>(
+                    main.webContents,
+                  ).refreshRecordingHistory.send()
+                }
+              }
+            })
+            .catch((error) => {
+              logLLM("[createMcpTextInput] Claude Code processing error:", error)
+            })
+
+          // Return immediately - Claude Code handles its own progress
+          return { conversationId: `claude-code-${Date.now()}` }
+        }
+        // Fall through to legacy mode if no agent available
+      }
+
+      // Legacy mode: Create or get conversation ID
       let conversationId = input.conversationId
       if (!conversationId) {
         const conversation = await conversationService.createConversation(

@@ -6,18 +6,20 @@ Voice-driven orchestration of parallel Claude Code agents. Users speak commands,
 ## Current State (v0.1.0)
 
 ### What's Done
-- [x] Local STT (FluidAudio/Parakeet) - Swift CLI wrapper
+- [x] Local STT (FluidAudio/Parakeet) - Swift CLI wrapper (`speakmcp-stt` binary)
 - [x] Local TTS (Kitten TTS) - Python wrapper with 8 voices
 - [x] Local provider UI in settings
 - [x] Rebranded to VibeCodeManager with separate config storage
 - [x] ACP infrastructure exists (from SpeakMCP)
 - [x] Session grid UI exists (from SpeakMCP)
+- [x] **Voice-to-Claude-Code pipeline** - `voice-agent-pipeline.ts` with `processVoiceCommand()` and `processTextCommand()`
+- [x] **Text input via panel** - Routes through Claude Code via ACP when `voiceToClaudeCodeEnabled: true`
+- [x] **Conversation history in UI** - Fixed progress updates to include `conversationHistory` for proper UI display
 
 ### What's NOT Done
-- [ ] Connect voice input directly to Claude Code agent
-- [ ] Test end-to-end voice loop
 - [ ] Strip unnecessary SpeakMCP features
 - [ ] Project/workspace management for parallel agents
+- [ ] Full end-to-end voice loop testing (text input tested, voice recording needs testing)
 
 ---
 
@@ -57,62 +59,46 @@ These features are not relevant to VibeCodeManager's mission:
 
 ---
 
-## Phase 2: Connect Voice to Claude Code
+## Phase 2: Connect Voice to Claude Code ✅ DONE
 
-### Current Flow (SpeakMCP)
+### Current Flow (VibeCodeManager)
 ```
-Voice → STT → Transcript → [Paste to clipboard OR Send to built-in LLM agent]
-```
-
-### Target Flow (VibeCodeManager)
-```
-Voice → Local STT → Claude Code (via ACP) → Response → Local TTS → Audio
+Voice/Text → Local STT (if voice) → Claude Code (via ACP) → Response → Local TTS → Audio
 ```
 
-### Implementation Tasks
+### Implementation Status
 
-#### 1. Create Voice-to-Agent Pipeline
-**File:** `src/main/voice-agent-pipeline.ts` (new)
+#### 1. Voice-to-Agent Pipeline ✅
+**File:** `src/main/voice-agent-pipeline.ts`
 
-```typescript
-// Pseudocode for the new pipeline
-export async function processVoiceCommand(audioBuffer: ArrayBuffer) {
-  // 1. Transcribe with local STT
-  const transcript = await transcribeLocal(audioBuffer)
+Two main functions implemented:
+- `processVoiceCommand(audioBuffer)` - Records voice → STT → Claude Code → TTS
+- `processTextCommand(text)` - Text input → Claude Code → TTS
 
-  // 2. Send to Claude Code via ACP
-  const response = await sendToClaudeCode(transcript.text)
+Both functions:
+- Track `conversationHistory` for UI display
+- Emit proper `agentProgress` updates
+- Handle TTS synthesis of agent responses
 
-  // 3. Synthesize response with local TTS
-  const audio = await synthesizeLocal(response.summary)
-
-  // 4. Play audio
-  await playAudio(audio)
-}
-```
-
-#### 2. Modify Recording Handler
+#### 2. Recording Handler ✅
 **File:** `src/main/tipc.ts`
 
-Change `createRecording` to:
-- Remove clipboard paste logic
-- Add option to route to Claude Code agent
-- Return agent response for TTS
+- `createMcpTextInput` routes to `processTextCommand()` when `voiceToClaudeCodeEnabled: true`
+- `createVoiceCommand` routes to `processVoiceCommand()`
+- Returns `conversationId` for tracking
 
-#### 3. Add Agent Response TTS
-**File:** `src/main/agent-tts.ts` (new)
+#### 3. Agent Response TTS ✅
+Built into `voice-agent-pipeline.ts`:
+- Extracts text response from Claude Code
+- Sends to local TTS (Kitten TTS)
+- Audio plays automatically via `playTtsAudioFile()`
 
-- Subscribe to agent progress events
-- Extract "summary" or final response
-- Send to TTS
-- Queue audio playback
-
-#### 4. Update Panel UI
+#### 4. Panel UI ✅
 **File:** `src/renderer/src/pages/panel.tsx`
 
-- Show "Listening..." → "Processing..." → "Speaking..." states
-- Display transcription and agent response
-- Add manual text input option
+- Shows conversation history (user messages + assistant responses)
+- Fixed "Initializing..." bug by including `conversationHistory` in progress updates
+- Text input panel available for manual input
 
 ---
 
@@ -247,21 +233,21 @@ cd apps/desktop
 npm run dev
 ```
 
-### Testing Local STT
+### Building Local STT (Required)
 ```bash
 # Build the Swift STT binary (requires macOS 14+)
 cd apps/desktop
 ./scripts/build-swift.sh
 
-# Test it
-./resources/bin/speakmcp-stt test.wav
+# Verify it's built
+ls -la resources/bin/speakmcp-stt
 ```
 
-### Testing Local TTS
+### Setting Up Local TTS (Required)
 ```bash
-# Set up Python venv
+# Set up Python venv (use Python 3.12, not 3.14 due to dependency issues)
 cd apps/desktop/speakmcp-tts
-python3 -m venv .venv
+python3.12 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 
@@ -269,13 +255,27 @@ pip install -r requirements.txt
 python tts.py output.wav --text "Hello world" --voice expr-voice-2-f
 ```
 
+### Verifying the Pipeline
+1. Run the app: `npm run dev`
+2. Open the panel UI
+3. Enter text in the text command input
+4. Verify:
+   - Message appears in conversation history (not stuck on "Initializing...")
+   - Claude Code responds via ACP
+   - Response is spoken via TTS
+
 ---
 
 ## Priority Order
 
-1. **Strip** - Remove unused code (1-2 days)
-2. **Connect** - Voice → Claude Code pipeline (2-3 days)
+1. ~~**Connect** - Voice → Claude Code pipeline~~ ✅ DONE
+2. **Strip** - Remove unused code (1-2 days)
 3. **Workspace** - Project management UI (2-3 days)
 4. **Polish** - Demo-ready state (1-2 days)
 
-Total estimate: ~1 week for MVP
+## Recent Fixes (Jan 5, 2026)
+
+1. **Built STT binary** - Ran `./scripts/build-swift.sh` to build `speakmcp-stt`
+2. **Set up TTS environment** - Created Python 3.12 venv at `speakmcp-tts/.venv`
+3. **Fixed text input routing** - Added `processTextCommand()` in `voice-agent-pipeline.ts` to route text input through Claude Code ACP instead of OpenAI API
+4. **Fixed "Initializing..." UI bug** - Added `conversationHistory` tracking to progress updates so UI displays actual messages

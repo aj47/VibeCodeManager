@@ -94,10 +94,18 @@ export async function processVoiceCommand(
     false // not snoozed, show panel
   )
 
+  // Build conversation history for progress updates
+  const conversationHistory: Array<{
+    role: "user" | "assistant"
+    content: string
+    timestamp: number
+    isComplete?: boolean
+  }> = []
+
   try {
     // Step 1: Transcribe with local STT
     logApp(`[VoicePipeline] Starting transcription for session ${sessionId}`)
-    
+
     await emitAgentProgress({
       sessionId,
       currentIteration: 0,
@@ -110,11 +118,12 @@ export async function processVoiceCommand(
         status: "in_progress",
         timestamp: Date.now(),
       }],
+      conversationHistory,
       isComplete: false,
     })
 
     const transcriptResult = await transcribeLocal(audioBuffer)
-    
+
     if (!transcriptResult.success || !transcriptResult.text) {
       await emitAgentProgress({
         sessionId,
@@ -128,9 +137,10 @@ export async function processVoiceCommand(
           status: "error",
           timestamp: Date.now(),
         }],
+        conversationHistory,
         isComplete: true,
       })
-      
+
       return {
         success: false,
         error: transcriptResult.error || "Transcription failed",
@@ -140,6 +150,14 @@ export async function processVoiceCommand(
 
     const transcript = transcriptResult.text
     logApp(`[VoicePipeline] Transcribed: "${transcript}"`)
+
+    // Add user message to conversation history
+    conversationHistory.push({
+      role: "user",
+      content: transcript,
+      timestamp: Date.now(),
+      isComplete: true,
+    })
 
     await emitAgentProgress({
       sessionId,
@@ -153,15 +171,13 @@ export async function processVoiceCommand(
         status: "completed",
         timestamp: Date.now(),
       }],
+      conversationHistory,
       isComplete: false,
     })
 
-    // Notify renderer of transcript via agent progress
-    // (voiceTranscript handler not yet implemented, using progress events instead)
-
     // Step 2: Send to Claude Code via ACP
     logApp(`[VoicePipeline] Sending to agent: ${agentName}`)
-    
+
     await emitAgentProgress({
       sessionId,
       currentIteration: 1,
@@ -174,6 +190,7 @@ export async function processVoiceCommand(
         status: "in_progress",
         timestamp: Date.now(),
       }],
+      conversationHistory,
       isComplete: false,
     })
 
@@ -184,6 +201,13 @@ export async function processVoiceCommand(
     })
 
     if (!agentResponse.success) {
+      conversationHistory.push({
+        role: "assistant",
+        content: `Error: ${agentResponse.error || "Agent did not respond"}`,
+        timestamp: Date.now(),
+        isComplete: true,
+      })
+
       await emitAgentProgress({
         sessionId,
         currentIteration: 2,
@@ -196,9 +220,10 @@ export async function processVoiceCommand(
           status: "error",
           timestamp: Date.now(),
         }],
+        conversationHistory,
         isComplete: true,
       })
-      
+
       return {
         success: false,
         transcript,
@@ -209,6 +234,14 @@ export async function processVoiceCommand(
 
     const response = agentResponse.result || "Task completed."
     logApp(`[VoicePipeline] Agent response: "${response.substring(0, 200)}..."`)
+
+    // Add assistant response to conversation history
+    conversationHistory.push({
+      role: "assistant",
+      content: response,
+      timestamp: Date.now(),
+      isComplete: true,
+    })
 
     await emitAgentProgress({
       sessionId,
@@ -222,13 +255,14 @@ export async function processVoiceCommand(
         status: "completed",
         timestamp: Date.now(),
       }],
+      conversationHistory,
       isComplete: false,
     })
 
     // Step 3: Synthesize and speak response with local TTS
     if (speakResponse && isLocalTTSAvailable()) {
       logApp(`[VoicePipeline] Synthesizing TTS response`)
-      
+
       await emitAgentProgress({
         sessionId,
         currentIteration: 2,
@@ -241,12 +275,13 @@ export async function processVoiceCommand(
           status: "in_progress",
           timestamp: Date.now(),
         }],
+        conversationHistory,
         isComplete: false,
       })
 
       // Extract a summary for TTS (don't speak entire response if it's long)
       const ttsText = extractSummaryForTTS(response)
-      
+
       try {
         await synthesizeLocal(ttsText)
         logApp(`[VoicePipeline] TTS complete`)
@@ -256,7 +291,7 @@ export async function processVoiceCommand(
       }
     }
 
-    // Mark complete
+    // Mark complete with full conversation history
     await emitAgentProgress({
       sessionId,
       currentIteration: 3,
@@ -269,6 +304,7 @@ export async function processVoiceCommand(
         status: "completed",
         timestamp: Date.now(),
       }],
+      conversationHistory,
       isComplete: true,
     })
 
@@ -283,7 +319,17 @@ export async function processVoiceCommand(
 
   } catch (error) {
     logApp(`[VoicePipeline] Error: ${error}`)
-    
+
+    // Add error message to conversation history if we have content
+    if (conversationHistory.length > 0) {
+      conversationHistory.push({
+        role: "assistant",
+        content: `Error: ${error instanceof Error ? error.message : String(error)}`,
+        timestamp: Date.now(),
+        isComplete: true,
+      })
+    }
+
     await emitAgentProgress({
       sessionId,
       currentIteration: 0,
@@ -296,6 +342,7 @@ export async function processVoiceCommand(
         status: "error",
         timestamp: Date.now(),
       }],
+      conversationHistory,
       isComplete: true,
     })
 
@@ -359,5 +406,208 @@ export function isVoicePipelineAvailable(): {
     hasTTS,
     hasAgent,
     agentName: agentName || undefined,
+  }
+}
+
+export interface TextCommandOptions {
+  /** Name of the ACP agent to use (defaults to first available Claude Code agent) */
+  agentName?: string
+  /** Working directory context for the agent */
+  workingDirectory?: string
+  /** Whether to speak the response via TTS */
+  speakResponse?: boolean
+  /** Optional existing session ID to continue conversation */
+  sessionId?: string
+}
+
+export interface TextCommandResult {
+  success: boolean
+  response?: string
+  error?: string
+  sessionId?: string
+}
+
+/**
+ * Process a text command through Claude Code via ACP.
+ * Similar to processVoiceCommand but without STT step.
+ * Used when voiceToClaudeCodeEnabled is true for text input.
+ */
+export async function processTextCommand(
+  text: string,
+  options: TextCommandOptions = {}
+): Promise<TextCommandResult> {
+  const {
+    agentName = findClaudeCodeAgent(),
+    workingDirectory,
+    speakResponse = true,
+    sessionId: existingSessionId
+  } = options
+
+  if (!agentName) {
+    return {
+      success: false,
+      error: "No Claude Code agent configured. Please add an ACP agent in settings."
+    }
+  }
+
+  // Create session for tracking
+  const sessionId = existingSessionId || agentSessionTracker.startSession(
+    undefined, // conversationId
+    "Text Command",
+    false // not snoozed, show panel
+  )
+
+  // Build conversation history for progress updates
+  const conversationHistory: Array<{
+    role: "user" | "assistant"
+    content: string
+    timestamp: number
+    isComplete?: boolean
+  }> = []
+
+  const userTimestamp = Date.now()
+
+  try {
+    logApp(`[TextPipeline] Processing text: ${text.substring(0, 50)}...`)
+
+    // Add user message to conversation history
+    conversationHistory.push({
+      role: "user",
+      content: text,
+      timestamp: userTimestamp,
+      isComplete: true,
+    })
+
+    await emitAgentProgress({
+      sessionId,
+      currentIteration: 1,
+      maxIterations: 2,
+      steps: [{
+        id: `agent_${Date.now()}`,
+        type: "tool_call",
+        title: "Processing with Claude Code",
+        description: `Sending to ${agentName}...`,
+        status: "in_progress",
+        timestamp: Date.now(),
+      }],
+      conversationHistory,
+      isComplete: false,
+    })
+
+    const agentResponse = await acpService.runTask({
+      agentName,
+      input: text,
+      context: workingDirectory ? `Working directory: ${workingDirectory}` : undefined,
+    })
+
+    if (!agentResponse.success) {
+      throw new Error(agentResponse.error || "Agent returned unsuccessful response")
+    }
+
+    const response = agentResponse.result || "No response from agent"
+    logApp(`[TextPipeline] Got response: ${response.substring(0, 100)}...`)
+
+    // Add assistant response to conversation history
+    conversationHistory.push({
+      role: "assistant",
+      content: response,
+      timestamp: Date.now(),
+      isComplete: true,
+    })
+
+    // Step 2: Optional TTS
+    const config = configStore.get()
+    const hasTTS = isLocalTTSAvailable()
+
+    if (speakResponse && config.ttsEnabled && hasTTS) {
+      logApp(`[TextPipeline] Synthesizing TTS response`)
+
+      await emitAgentProgress({
+        sessionId,
+        currentIteration: 2,
+        maxIterations: 2,
+        steps: [{
+          id: `tts_${Date.now()}`,
+          type: "thinking",
+          title: "Speaking response...",
+          description: "Synthesizing speech",
+          status: "in_progress",
+          timestamp: Date.now(),
+        }],
+        conversationHistory,
+        isComplete: false,
+      })
+
+      const ttsText = extractSummaryForTTS(response)
+
+      try {
+        await synthesizeLocal(ttsText)
+        logApp(`[TextPipeline] TTS complete`)
+      } catch (ttsError) {
+        logApp(`[TextPipeline] TTS failed: ${ttsError}`)
+      }
+    }
+
+    // Mark complete with full conversation history
+    await emitAgentProgress({
+      sessionId,
+      currentIteration: 2,
+      maxIterations: 2,
+      steps: [{
+        id: `complete_${Date.now()}`,
+        type: "thinking",
+        title: "Complete",
+        description: "Text command processed successfully",
+        status: "completed",
+        timestamp: Date.now(),
+      }],
+      conversationHistory,
+      isComplete: true,
+    })
+
+    agentSessionTracker.completeSession(sessionId, "Text command completed")
+
+    return {
+      success: true,
+      response,
+      sessionId,
+    }
+
+  } catch (error) {
+    logApp(`[TextPipeline] Error: ${error}`)
+
+    // Add error message to conversation history if we have a user message
+    if (conversationHistory.length > 0) {
+      conversationHistory.push({
+        role: "assistant",
+        content: `Error: ${error instanceof Error ? error.message : String(error)}`,
+        timestamp: Date.now(),
+        isComplete: true,
+      })
+    }
+
+    await emitAgentProgress({
+      sessionId,
+      currentIteration: 0,
+      maxIterations: 2,
+      steps: [{
+        id: `error_${Date.now()}`,
+        type: "thinking",
+        title: "Error",
+        description: error instanceof Error ? error.message : String(error),
+        status: "error",
+        timestamp: Date.now(),
+      }],
+      conversationHistory,
+      isComplete: true,
+    })
+
+    agentSessionTracker.completeSession(sessionId, "Text command failed")
+
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+      sessionId,
+    }
   }
 }
