@@ -2,8 +2,8 @@
 
 /** @type {import('electron-builder').Configuration} */
 module.exports = {
-  appId: "app.speakmcp",
-  productName: "SpeakMCP",
+  appId: "app.vibecodemanager",
+  productName: "VibeCodeManager",
   icon: "build/icon.png",
   directories: {
     buildResources: "build",
@@ -24,7 +24,7 @@ module.exports = {
   asar: false,
   win: {
     icon: "build/icon.ico",
-    executableName: "speakmcp",
+    executableName: "vibecodemanager",
     target: [
       {
         target: "nsis",
@@ -96,18 +96,18 @@ module.exports = {
     ],
     extendInfo: {
       NSCameraUsageDescription:
-        "SpeakMCP may request camera access for enhanced AI features.",
+        "VibeCodeManager may request camera access for enhanced AI features.",
       NSMicrophoneUsageDescription:
-        "SpeakMCP requires microphone access for voice dictation and transcription.",
+        "VibeCodeManager requires microphone access for voice dictation and transcription.",
       NSDocumentsFolderUsageDescription:
-        "SpeakMCP may access your Documents folder to save transcriptions and settings.",
+        "VibeCodeManager may access your Documents folder to save transcriptions and settings.",
       NSDownloadsFolderUsageDescription:
-        "SpeakMCP may access your Downloads folder to save exported files.",
+        "VibeCodeManager may access your Downloads folder to save exported files.",
       LSMinimumSystemVersion: "12.0.0",
       CFBundleURLTypes: [
         {
-          CFBundleURLName: "SpeakMCP Protocol",
-          CFBundleURLSchemes: ["speakmcp"],
+          CFBundleURLName: "VibeCodeManager Protocol",
+          CFBundleURLSchemes: ["vibecodemanager"],
         },
       ],
     },
@@ -133,18 +133,18 @@ module.exports = {
     cscInstallerLink: process.env.CSC_INSTALLER_LINK,
     extendInfo: {
       NSCameraUsageDescription:
-        "SpeakMCP may request camera access for enhanced AI features.",
+        "VibeCodeManager may request camera access for enhanced AI features.",
       NSMicrophoneUsageDescription:
-        "SpeakMCP requires microphone access for voice dictation and transcription.",
+        "VibeCodeManager requires microphone access for voice dictation and transcription.",
       NSDocumentsFolderUsageDescription:
-        "SpeakMCP may access your Documents folder to save transcriptions and settings.",
+        "VibeCodeManager may access your Documents folder to save transcriptions and settings.",
       NSDownloadsFolderUsageDescription:
-        "SpeakMCP may access your Downloads folder to save exported files.",
+        "VibeCodeManager may access your Downloads folder to save exported files.",
       LSMinimumSystemVersion: "12.0.0",
       CFBundleURLTypes: [
         {
-          CFBundleURLName: "SpeakMCP Protocol",
-          CFBundleURLSchemes: ["speakmcp"],
+          CFBundleURLName: "VibeCodeManager Protocol",
+          CFBundleURLSchemes: ["vibecodemanager"],
         },
       ],
     },
@@ -159,18 +159,18 @@ module.exports = {
     category: "public.app-category.productivity",
     extendInfo: {
       NSCameraUsageDescription:
-        "SpeakMCP may request camera access for enhanced AI features.",
+        "VibeCodeManager may request camera access for enhanced AI features.",
       NSMicrophoneUsageDescription:
-        "SpeakMCP requires microphone access for voice dictation and transcription.",
+        "VibeCodeManager requires microphone access for voice dictation and transcription.",
       NSDocumentsFolderUsageDescription:
-        "SpeakMCP may access your Documents folder to save transcriptions and settings.",
+        "VibeCodeManager may access your Documents folder to save transcriptions and settings.",
       NSDownloadsFolderUsageDescription:
-        "SpeakMCP may access your Downloads folder to save exported files.",
+        "VibeCodeManager may access your Downloads folder to save exported files.",
       LSMinimumSystemVersion: "10.15.0",
       CFBundleURLTypes: [
         {
-          CFBundleURLName: "SpeakMCP Protocol",
-          CFBundleURLSchemes: ["speakmcp"],
+          CFBundleURLName: "VibeCodeManager Protocol",
+          CFBundleURLSchemes: ["vibecodemanager"],
         },
       ],
     },
@@ -192,23 +192,23 @@ module.exports = {
   },
   linux: {
     target: ["AppImage", "snap", "deb"],
-    maintainer: "SpeakMCP <hi@techfren.net>",
-    vendor: "SpeakMCP",
+    maintainer: "VibeCodeManager <hi@techfren.net>",
+    vendor: "VibeCodeManager",
     category: "Utility",
-    synopsis: "AI-powered voice assistant with MCP integration",
-    description: "SpeakMCP is an AI-powered dictation and voice assistant tool with Model Context Protocol (MCP) integration for enhanced productivity.",
+    synopsis: "Voice-driven parallel Claude Code agent orchestration",
+    description: "VibeCodeManager is a voice-driven tool for orchestrating parallel Claude Code agents with local STT/TTS support.",
     desktop: {
-      Name: "SpeakMCP",
-      Comment: "AI-powered voice assistant with MCP integration",
-      GenericName: "Voice Assistant",
-      Keywords: "voice;dictation;ai;assistant;mcp;transcription;",
+      Name: "VibeCodeManager",
+      Comment: "Voice-driven parallel Claude Code agent orchestration",
+      GenericName: "Code Agent Manager",
+      Keywords: "voice;claude;code;agent;parallel;orchestration;",
       Categories: "Utility;Audio;Development;",
-      StartupWMClass: "speakmcp",
+      StartupWMClass: "vibecodemanager",
       StartupNotify: false,
       Terminal: false,
       Type: "Application",
     },
-    executableName: "speakmcp",
+    executableName: "vibecodemanager",
     extraResources: [
       {
         from: "resources/bin/speakmcp-rs",
@@ -274,7 +274,7 @@ module.exports = {
   publish: {
     provider: "github",
     owner: "aj47",
-    repo: "SpeakMCP",
+    repo: "VibeCodeManager",
   },
   removePackageScripts: true,
 }

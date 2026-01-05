@@ -1,11 +1,11 @@
 {
-  "name": "@speakmcp/desktop",
-  "version": "1.2.0",
+  "name": "@vibecodemanager/desktop",
+  "version": "0.1.0",
   "type": "module",
-  "description": "AI-powered dictation tool with MCP integration",
+  "description": "Voice-driven parallel Claude Code agent orchestration with local STT/TTS",
   "main": "./out/main/index.js",
-  "author": "SpeakMCP",
-  "homepage": "https://github.com/aj47/SpeakMCP",
+  "author": "VibeCodeManager",
+  "homepage": "https://github.com/aj47/VibeCodeManager",
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint . --ext .js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix",
