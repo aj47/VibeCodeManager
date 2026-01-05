@@ -360,15 +360,31 @@ export interface ModelPreset {
 // ACP Agent Configuration Types
 export type ACPConnectionType = "stdio" | "remote" | "internal"
 
-// Workspace Configuration for parallel Claude Code sessions
-export interface WorkspaceConfig {
+// Project Configuration for organizing Claude Code workspaces
+export interface ProjectDirectory {
+  id: string
+  path: string  // Absolute path to the directory
+  name?: string  // Optional display name for the directory
+  isDefault?: boolean  // If true, this is the default directory for the project
+}
+
+export interface ProjectConfig {
   id: string
   name: string
-  path: string  // Working directory
-  claudeCodeArgs?: string[]
-  mcpServers?: string[]  // MCP server names to enable
-  autoStart?: boolean
-  agentName?: string  // Name of the ACP agent to use
+  description?: string
+  directories: ProjectDirectory[]  // One or more working directories
+  gitRepoUrl?: string  // Optional git repository URL
+  claudeCodeArgs?: string[]  // Custom args for Claude Code
+  autoStart?: boolean  // Whether to auto-start Claude Code for this project
+  createdAt: number
+  updatedAt: number
+}
+
+// Parent folder where users can create new projects
+export interface ProjectParentFolder {
+  id: string
+  path: string
+  name: string  // Display name like "Work Projects" or "Personal"
 }
 
 export interface ACPAgentConfig {
@@ -615,8 +631,12 @@ export type Config = {
   // ACP Agent Configuration
   acpAgents?: ACPAgentConfig[]
 
-  // Workspace Configuration (for parallel Claude Code sessions)
-  workspaces?: WorkspaceConfig[]
+  // Project Configuration (for parallel Claude Code sessions)
+  projects?: ProjectConfig[]
+  // Parent folders where users can create new projects
+  projectParentFolders?: ProjectParentFolder[]
+  // Currently active project ID
+  activeProjectId?: string
 
   // A2A (Agent-to-Agent) Configuration
   a2aConfig?: {

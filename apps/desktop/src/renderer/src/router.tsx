@@ -54,6 +54,10 @@ export const router: ReturnType<typeof createBrowserRouter> =
           path: "settings/acp-agents",
           lazy: () => import("./pages/settings-acp-agents"),
         },
+        {
+          path: "settings/projects",
+          lazy: () => import("./pages/settings-projects"),
+        },
 
       ],
     },

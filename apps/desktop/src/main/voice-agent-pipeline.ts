@@ -39,27 +39,51 @@ export interface VoiceCommandOptions {
 function findClaudeCodeAgent(): string | null {
   const config = configStore.get()
   const agents = config.acpAgents || []
-  
+
   // Filter to only external agents (stdio or remote, not internal)
-  const externalAgents = agents.filter(a => 
-    a.enabled !== false && 
-    !a.isInternal && 
+  const externalAgents = agents.filter(a =>
+    a.enabled !== false &&
+    !a.isInternal &&
     a.connection?.type !== 'internal'
   )
-  
+
   // Look for Claude Code agent (by name pattern)
-  const claudeAgent = externalAgents.find(a => 
+  const claudeAgent = externalAgents.find(a =>
     a.name.toLowerCase().includes('claude') ||
     a.name.toLowerCase().includes('code') ||
     a.connection?.command?.includes('claude')
   )
-  
+
   if (claudeAgent) {
     return claudeAgent.name
   }
-  
+
   // Fall back to first enabled external agent
   return externalAgents[0]?.name || null
+}
+
+/**
+ * Get the working directory for the active project
+ * Returns the default directory of the active project, or undefined if no project is active
+ */
+function getActiveProjectCwd(): string | undefined {
+  const config = configStore.get()
+  const activeProjectId = config.activeProjectId
+
+  if (!activeProjectId) {
+    return undefined
+  }
+
+  const projects = config.projects || []
+  const activeProject = projects.find(p => p.id === activeProjectId)
+
+  if (!activeProject || activeProject.directories.length === 0) {
+    return undefined
+  }
+
+  // Find the default directory, or use the first one
+  const defaultDir = activeProject.directories.find(d => d.isDefault) || activeProject.directories[0]
+  return defaultDir?.path
 }
 
 /**
@@ -194,10 +218,14 @@ export async function processVoiceCommand(
       isComplete: false,
     })
 
+    // Use provided workingDirectory or get from active project
+    const cwd = workingDirectory || getActiveProjectCwd()
+
     const agentResponse = await acpService.runTask({
       agentName,
       input: transcript,
-      context: workingDirectory ? `Working directory: ${workingDirectory}` : undefined,
+      cwd,
+      context: cwd ? `Working directory: ${cwd}` : undefined,
     })
 
     if (!agentResponse.success) {
@@ -494,10 +522,14 @@ export async function processTextCommand(
       isComplete: false,
     })
 
+    // Use provided workingDirectory or get from active project
+    const cwd = workingDirectory || getActiveProjectCwd()
+
     const agentResponse = await acpService.runTask({
       agentName,
       input: text,
-      context: workingDirectory ? `Working directory: ${workingDirectory}` : undefined,
+      cwd,
+      context: cwd ? `Working directory: ${cwd}` : undefined,
     })
 
     if (!agentResponse.success) {

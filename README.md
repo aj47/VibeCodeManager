@@ -1,93 +1,100 @@
-# SpeakMCP
+# VibeCodeManager
 
-🎤 **AI-powered voice assistant with MCP integration** - A fork of [Whispo](https://github.com/egoist/whispo) that transforms your voice into intelligent actions with advanced speech recognition, LLM processing, and Model Context Protocol (MCP) tool execution.
+🎙️ **Voice-driven orchestration of Claude Code** — Speak commands, Claude Code executes, hear responses. Zero API keys needed — just a Claude Pro subscription.
 
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](./LICENSE)
 [![Electron](https://img.shields.io/badge/Electron-31.0.2-47848f.svg)](https://electronjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6.3-blue.svg)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-18.3.1-61dafb.svg)](https://reactjs.org/)
 
-## 🎬 Preview
+## ✨ What is VibeCodeManager?
 
-[Click here to see v1 launch video on youtube ](https://www.youtube.com/watch?v=A4oKYCaeaaw)
+VibeCodeManager lets you control Claude Code with your voice. The entire pipeline runs locally:
 
-https://github.com/user-attachments/assets/0c181c70-d1f1-4c5d-a6f5-a73147e75182
+```
+🎤 Voice → Local STT → Claude Code → Response → Local TTS → 🔊 Audio
+```
+
+- **Local STT**: FluidAudio/Parakeet (macOS 14+)
+- **Local TTS**: Kitten TTS with 8 voices
+- **No cloud APIs**: Everything runs on your machine
 
 ## 🚀 Quick Start
 
-### Download
+> **Requirements**: macOS 14+, Claude Pro subscription
 
-**[📥 Download Latest Release](https://github.com/aj47/SpeakMCP/releases/latest)**
+### 1. Install Claude CLI
+```bash
+npm install -g @anthropic-ai/claude-code
+```
 
-> **Platform Support**: macOS (Apple Silicon & Intel) with full MCP agent functionality.
-> ⚠️ **Windows/Linux**: MCP tools not currently supported — see [v0.2.2](https://github.com/aj47/SpeakMCP/releases/tag/v0.2.2) for dictation-only builds.
+### 2. Build Local STT
+```bash
+cd apps/desktop
+./scripts/build-swift.sh
+```
 
-### Basic Usage
+### 3. Set up Local TTS
+```bash
+cd apps/desktop/speakmcp-tts
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+```
 
-**Voice Recording:**
+### 4. Run the App
+```bash
+pnpm install
+pnpm -w run build:shared
+cd apps/desktop
+npm run dev
+```
 
-1. **Hold `Ctrl`** (macOS/Linux) or **`Ctrl+/`** (Windows) to start recording
-2. **Release** to stop recording and transcribe
-3. Text is automatically inserted into your active application
+## 🎯 Usage
 
-**MCP Agent Mode** (macOS only):
-
-1. **Hold `Ctrl+Alt`** to start recording for agent mode
-2. **Release `Ctrl+Alt`** to process with MCP tools
-3. Watch real-time progress as the agent executes tools
-4. Results are automatically inserted or displayed
-
-**Text Input:**
-
-- **`Ctrl+T`** (macOS/Linux) or **`Ctrl+Shift+T`** (Windows) for direct typing
+1. **Press hotkey** to start recording
+2. **Speak your command** (e.g., "Create a new React component called Button")
+3. **Claude Code executes** the request in your workspace
+4. **Hear the response** via local TTS
 
 ## ✨ Features
 
 | Category | Capabilities |
 |----------|--------------|
-| **🎤 Voice** | Hold-to-record, 30+ languages, Fn toggle mode, auto-insert to any app |
-| **🔊 TTS** | 50+ AI voices via OpenAI, Groq, and Gemini with auto-play |
-| **🤖 MCP Agent** | Tool execution, OAuth 2.1 auth, real-time progress, conversation context |
-| **🛠️ Platform** | macOS/Windows/Linux, rate limit handling, multi-provider AI |
-| **🎨 UX** | Dark/light themes, resizable panels, kill switch, conversation history |
+| **🎤 Voice Input** | Local STT via FluidAudio, hold-to-record |
+| **🔊 Voice Output** | Local TTS via Kitten, 8 voices available |
+| **🤖 Claude Code** | Automatic workspace detection, pre-configured agent |
+| **🔒 Privacy** | 100% local audio processing, no cloud APIs |
+| **⚡ Simple Setup** | 3 settings pages: General, Providers, Agents |
+
+## ⚙️ Configuration
+
+VibeCodeManager comes pre-configured for local-first operation:
+
+```typescript
+{
+  voiceToClaudeCodeEnabled: true,
+  sttProviderId: "local",
+  ttsProviderId: "local",
+  acpAgents: [{
+    name: "claude-code",
+    command: "claude",
+    args: ["--dangerously-skip-permissions"],
+    enabled: true,
+    autoSpawn: true
+  }]
+}
+```
+
+No API keys required — just authenticate with Claude Pro.
 
 ## 🛠️ Development
 
 ```bash
-git clone https://github.com/aj47/SpeakMCP.git && cd SpeakMCP
-pnpm install && pnpm build-rs && pnpm dev
+git clone https://github.com/aj47/VibeCodeManager.git && cd VibeCodeManager
+pnpm install && pnpm -w run build:shared && cd apps/desktop && npm run dev
 ```
 
-See **[DEVELOPMENT.md](DEVELOPMENT.md)** for full setup, build commands, troubleshooting, and architecture details.
-
-## ⚙️ Configuration
-
-**AI Providers** — Configure in settings:
-- OpenAI, Groq, or Google Gemini API keys
-- Model selection per provider
-- Custom base URLs (optional)
-
-**MCP Servers** — Add tools in `mcpServers` JSON format:
-```json
-{
-  "mcpServers": {
-    "filesystem": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path"]
-    }
-  }
-}
-```
-
-**Keyboard Shortcuts**:
-
-| Shortcut | Action |
-|----------|--------|
-| Hold `Ctrl` / `Ctrl+/` (Win) | Voice recording |
-| `Fn` | Toggle dictation on/off |
-| Hold `Ctrl+Alt` | MCP agent mode (macOS) |
-| `Ctrl+T` / `Ctrl+Shift+T` (Win) | Text input |
-| `Ctrl+Shift+Escape` | Kill switch |
+See **[DEVELOPMENT.md](DEVELOPMENT.md)** for architecture details and troubleshooting.
 
 ## 🤝 Contributing
 
@@ -101,8 +108,8 @@ This project is licensed under the [AGPL-3.0 License](./LICENSE).
 
 ## 🙏 Acknowledgments
 
-Built on [Whispo](https://github.com/egoist/whispo) • Powered by [OpenAI](https://openai.com/), [Anthropic](https://anthropic.com/), [Groq](https://groq.com/), [Google](https://ai.google.dev/) • [MCP](https://modelcontextprotocol.io/) • [Electron](https://electronjs.org/) • [React](https://reactjs.org/) • [Rust](https://rust-lang.org/)
+Built on [Whispo](https://github.com/egoist/whispo) • Powered by [Anthropic Claude Code](https://anthropic.com/) • [Electron](https://electronjs.org/) • [React](https://reactjs.org/)
 
 ---
 
-**Made with ❤️ by the SpeakMCP team**
+**Made with ❤️ by the VibeCodeManager team**

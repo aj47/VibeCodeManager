@@ -2,8 +2,18 @@ import React, { useState, useRef, useEffect, useImperativeHandle, forwardRef } f
 import { Textarea } from "@renderer/components/ui/textarea"
 import { cn } from "@renderer/lib/utils"
 import { AgentProcessingView } from "./agent-processing-view"
-import { AgentProgressUpdate } from "../../../shared/types"
+import { AgentProgressUpdate, ProjectConfig } from "../../../shared/types"
 import { useTheme } from "@renderer/contexts/theme-context"
+import { tipcClient } from "@renderer/lib/tipc-client"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { FolderOpen, ChevronDown } from "lucide-react"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@renderer/components/ui/select"
 
 interface TextInputPanelProps {
   onSubmit: (text: string) => void
@@ -25,6 +35,29 @@ export const TextInputPanel = forwardRef<TextInputPanelRef, TextInputPanelProps>
   const [text, setText] = useState("")
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const { isDark } = useTheme()
+  const queryClient = useQueryClient()
+
+  // Fetch config for projects
+  const configQuery = useQuery({
+    queryKey: ["config"],
+    queryFn: () => tipcClient.getConfig(),
+  })
+
+  const projects = configQuery.data?.projects || []
+  const activeProjectId = configQuery.data?.activeProjectId
+  const activeProject = projects.find((p) => p.id === activeProjectId)
+
+  // Mutation to change active project
+  const setActiveProjectMutation = useMutation({
+    mutationFn: async (projectId: string | undefined) => {
+      await tipcClient.saveConfig({
+        config: { activeProjectId: projectId },
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["config"] })
+    },
+  })
 
   useImperativeHandle(ref, () => ({
     focus: () => {
@@ -116,6 +149,37 @@ export const TextInputPanel = forwardRef<TextInputPanelRef, TextInputPanelProps>
         />
       ) : (
         <div className="flex flex-1 flex-col gap-2">
+          {/* Project selector */}
+          {projects.length > 0 && (
+            <div className="flex items-center gap-2">
+              <FolderOpen className="h-3.5 w-3.5 text-muted-foreground" />
+              <Select
+                value={activeProjectId || "none"}
+                onValueChange={(value) => {
+                  setActiveProjectMutation.mutate(value === "none" ? undefined : value)
+                }}
+              >
+                <SelectTrigger className="h-6 w-auto min-w-[120px] max-w-[200px] border-0 bg-transparent px-1 text-xs hover:bg-white/10">
+                  <SelectValue placeholder="Select project" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">
+                    <span className="text-muted-foreground">No project</span>
+                  </SelectItem>
+                  {projects.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {activeProject && (
+                <span className="truncate text-xs text-muted-foreground" title={activeProject.directories.find(d => d.isDefault)?.path}>
+                  {activeProject.directories.find(d => d.isDefault)?.path}
+                </span>
+              )}
+            </div>
+          )}
           <div className="modern-text-muted text-xs">
             Type your message • Enter to send • Shift+Enter for new line • Esc
             to cancel

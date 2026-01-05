@@ -2635,6 +2635,20 @@ export const router = {
     }
   }),
 
+  // Directory selection for project management
+  selectDirectory: t.procedure.action(async () => {
+    const result = await dialog.showOpenDialog({
+      title: "Select Directory",
+      properties: ["openDirectory", "createDirectory"],
+    })
+
+    if (result.canceled || !result.filePaths.length) {
+      return null
+    }
+
+    return result.filePaths[0]
+  }),
+
   // Cloudflare Tunnel handlers
   checkCloudflaredInstalled: t.procedure.action(async () => {
     const { checkCloudflaredInstalled } = await import("./cloudflare-tunnel")

@@ -62,6 +62,7 @@ export interface ACPAgentInstance {
   // ACP protocol state
   initialized?: boolean
   sessionId?: string
+  sessionCwd?: string  // Working directory for the current session
 }
 
 // ACP Run request
@@ -70,6 +71,8 @@ export interface ACPRunRequest {
   input: string | { messages: Array<{ role: string; content: string }> }
   context?: string
   mode?: "sync" | "async" | "stream"
+  /** Working directory for the agent session */
+  cwd?: string
 }
 
 // ACP Run response
@@ -1067,31 +1070,45 @@ class ACPService extends EventEmitter {
 
   /**
    * Create a new ACP session for the agent.
+   * @param agentName - Name of the agent
+   * @param cwd - Working directory for the session (defaults to process.cwd())
    */
-  private async createSession(agentName: string): Promise<string | undefined> {
+  private async createSession(agentName: string, cwd?: string): Promise<string | undefined> {
     const instance = this.agents.get(agentName)
     if (!instance) {
       return undefined
     }
 
-    // Reuse existing session if available
-    if (instance.sessionId) {
+    // If cwd changed, we need a new session
+    const currentCwd = instance.sessionCwd
+    const requestedCwd = cwd || process.cwd()
+
+    // Reuse existing session if cwd is the same
+    if (instance.sessionId && currentCwd === requestedCwd) {
       return instance.sessionId
     }
 
-    logApp(`[ACP:${agentName}] Creating new session`)
+    // Clear existing session if cwd changed
+    if (instance.sessionId && currentCwd !== requestedCwd) {
+      logApp(`[ACP:${agentName}] Working directory changed, creating new session`)
+      instance.sessionId = undefined
+      instance.sessionCwd = undefined
+    }
+
+    logApp(`[ACP:${agentName}] Creating new session with cwd: ${requestedCwd}`)
 
     try {
       // Use session/new per ACP spec (not session/create)
       const result = await this.sendRequest(agentName, "session/new", {
-        cwd: process.cwd(),
+        cwd: requestedCwd,
         mcpServers: [],
       }) as { sessionId?: string }
 
       const sessionId = result?.sessionId
       if (sessionId) {
         instance.sessionId = sessionId
-        logApp(`[ACP:${agentName}] Session created: ${sessionId}`)
+        instance.sessionCwd = requestedCwd
+        logApp(`[ACP:${agentName}] Session created: ${sessionId} (cwd: ${requestedCwd})`)
       }
       return sessionId
     } catch (error) {
@@ -1109,7 +1126,7 @@ class ACPService extends EventEmitter {
    * 4. Receive session/update notifications for results
    */
   async runTask(request: ACPRunRequest): Promise<ACPRunResponse> {
-    const { agentName, input, context } = request
+    const { agentName, input, context, cwd } = request
 
     // Ensure agent is running
     let instance = this.agents.get(agentName)
@@ -1139,8 +1156,8 @@ class ACPService extends EventEmitter {
         await this.initializeAgent(agentName)
       }
 
-      // Step 2: Create session if needed
-      const sessionId = await this.createSession(agentName)
+      // Step 2: Create session if needed (pass cwd for project context)
+      const sessionId = await this.createSession(agentName, cwd)
 
       // Format the input text
       const inputText = typeof input === "string" ? input :
