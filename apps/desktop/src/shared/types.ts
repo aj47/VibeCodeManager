@@ -304,14 +304,14 @@ export type ProfileModelConfig = {
   mcpToolsGeminiModel?: string
   currentModelPresetId?: string
   // STT Provider settings
-  sttProviderId?: "openai" | "groq"
+  sttProviderId?: "local" | "openai" | "groq"
   // Transcript Post-Processing settings
   transcriptPostProcessingProviderId?: "openai" | "groq" | "gemini"
   transcriptPostProcessingOpenaiModel?: string
   transcriptPostProcessingGroqModel?: string
   transcriptPostProcessingGeminiModel?: string
   // TTS Provider settings
-  ttsProviderId?: "openai" | "groq" | "gemini"
+  ttsProviderId?: "local" | "openai" | "groq" | "gemini"
 }
 
 // Profile Management Types
@@ -450,6 +450,9 @@ export type Config = {
   geminiTtsModel?: "gemini-2.5-flash-preview-tts" | "gemini-2.5-pro-preview-tts"
   geminiTtsVoice?: string
   geminiTtsLanguage?: string
+
+  // Local (Kitten TTS) Configuration
+  localTtsVoice?: string // e.g., "expr-voice-2-f", "expr-voice-3-m"
 
   // TTS Text Preprocessing Configuration
   ttsPreprocessingEnabled?: boolean

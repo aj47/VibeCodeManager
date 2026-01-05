@@ -47,6 +47,7 @@ import {
   processTranscriptWithAgentMode,
 } from "./llm"
 import { mcpService, MCPToolResult } from "./mcp-service"
+import { transcribeLocal, synthesizeLocal, isLocalSTTAvailable, isLocalTTSAvailable } from "./local-audio"
 import {
   saveCustomPosition,
   updatePanelPosition,
@@ -956,56 +957,65 @@ export const router = {
       const config = configStore.get()
       let transcript: string
 
-      // Use OpenAI or Groq for transcription
-      const form = new FormData()
-      form.append(
-        "file",
-        new File([input.recording], "recording.webm", { type: "audio/webm" }),
-      )
-      form.append(
-        "model",
-        config.sttProviderId === "groq" ? "whisper-large-v3" : "whisper-1",
-      )
-      form.append("response_format", "json")
+      // Use local STT if configured
+      if (config.sttProviderId === "local") {
+        const result = await transcribeLocal(input.recording)
+        if (!result.success) {
+          throw new Error(result.error || "Local STT failed")
+        }
+        transcript = await postProcessTranscript(result.text)
+      } else {
+        // Use OpenAI or Groq for transcription
+        const form = new FormData()
+        form.append(
+          "file",
+          new File([input.recording], "recording.webm", { type: "audio/webm" }),
+        )
+        form.append(
+          "model",
+          config.sttProviderId === "groq" ? "whisper-large-v3" : "whisper-1",
+        )
+        form.append("response_format", "json")
 
-      // Add prompt parameter for Groq if provided
-      if (config.sttProviderId === "groq" && config.groqSttPrompt?.trim()) {
-        form.append("prompt", config.groqSttPrompt.trim())
-      }
+        // Add prompt parameter for Groq if provided
+        if (config.sttProviderId === "groq" && config.groqSttPrompt?.trim()) {
+          form.append("prompt", config.groqSttPrompt.trim())
+        }
 
-      // Add language parameter if specified
-      const languageCode = config.sttProviderId === "groq"
-        ? config.groqSttLanguage || config.sttLanguage
-        : config.openaiSttLanguage || config.sttLanguage;
+        // Add language parameter if specified
+        const languageCode = config.sttProviderId === "groq"
+          ? config.groqSttLanguage || config.sttLanguage
+          : config.openaiSttLanguage || config.sttLanguage;
 
-      if (languageCode && languageCode !== "auto") {
-        form.append("language", languageCode)
-      }
+        if (languageCode && languageCode !== "auto") {
+          form.append("language", languageCode)
+        }
 
-      const groqBaseUrl = config.groqBaseUrl || "https://api.groq.com/openai/v1"
-      const openaiBaseUrl = config.openaiBaseUrl || "https://api.openai.com/v1"
+        const groqBaseUrl = config.groqBaseUrl || "https://api.groq.com/openai/v1"
+        const openaiBaseUrl = config.openaiBaseUrl || "https://api.openai.com/v1"
 
-      const transcriptResponse = await fetch(
-        config.sttProviderId === "groq"
-          ? `${groqBaseUrl}/audio/transcriptions`
-          : `${openaiBaseUrl}/audio/transcriptions`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${config.sttProviderId === "groq" ? config.groqApiKey : config.openaiApiKey}`,
+        const transcriptResponse = await fetch(
+          config.sttProviderId === "groq"
+            ? `${groqBaseUrl}/audio/transcriptions`
+            : `${openaiBaseUrl}/audio/transcriptions`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${config.sttProviderId === "groq" ? config.groqApiKey : config.openaiApiKey}`,
+            },
+            body: form,
           },
-          body: form,
-        },
-      )
+        )
 
-      if (!transcriptResponse.ok) {
-        const message = `${transcriptResponse.statusText} ${(await transcriptResponse.text()).slice(0, 300)}`
+        if (!transcriptResponse.ok) {
+          const message = `${transcriptResponse.statusText} ${(await transcriptResponse.text()).slice(0, 300)}`
 
-        throw new Error(message)
+          throw new Error(message)
+        }
+
+        const json: { text: string } = await transcriptResponse.json()
+        transcript = await postProcessTranscript(json.text)
       }
-
-      const json: { text: string } = await transcriptResponse.json()
-      transcript = await postProcessTranscript(json.text)
 
       const history = getRecordingHistory()
       const item: RecordingHistoryItem = {
@@ -2102,7 +2112,10 @@ export const router = {
 
 
 
-        if (providerId === "openai") {
+        if (providerId === "local") {
+          const localVoice = config.localTtsVoice || "expr-voice-2-f"
+          audioBuffer = await synthesizeLocal(processedText, localVoice)
+        } else if (providerId === "openai") {
           audioBuffer = await generateOpenAITTS(processedText, input, config)
         } else if (providerId === "groq") {
           audioBuffer = await generateGroqTTS(processedText, input, config)
@@ -2483,14 +2496,14 @@ export const router = {
       mcpToolsGeminiModel?: string
       currentModelPresetId?: string
       // STT Provider settings
-      sttProviderId?: "openai" | "groq"
+      sttProviderId?: "local" | "openai" | "groq"
       // Transcript Post-Processing settings
       transcriptPostProcessingProviderId?: "openai" | "groq" | "gemini"
       transcriptPostProcessingOpenaiModel?: string
       transcriptPostProcessingGroqModel?: string
       transcriptPostProcessingGeminiModel?: string
       // TTS Provider settings
-      ttsProviderId?: "openai" | "groq" | "gemini"
+      ttsProviderId?: "local" | "openai" | "groq" | "gemini"
     }>()
     .action(async ({ input }) => {
         return profileService.updateProfileModelConfig(input.profileId, {

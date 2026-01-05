@@ -2,6 +2,10 @@ import { ModelPreset } from "./types"
 
 export const STT_PROVIDERS = [
   {
+    label: "Local (FluidAudio)",
+    value: "local",
+  },
+  {
     label: "OpenAI",
     value: "openai",
   },
@@ -32,6 +36,10 @@ export type CHAT_PROVIDER_ID = (typeof CHAT_PROVIDERS)[number]["value"]
 
 export const TTS_PROVIDERS = [
   {
+    label: "Local (Kitten TTS)",
+    value: "local",
+  },
+  {
     label: "OpenAI",
     value: "openai",
   },
@@ -60,6 +68,18 @@ export const OPENAI_TTS_VOICES = [
 export const OPENAI_TTS_MODELS = [
   { label: "TTS-1 (Standard)", value: "tts-1" },
   { label: "TTS-1-HD (High Quality)", value: "tts-1-hd" },
+] as const
+
+// Local (Kitten TTS) Voice Options
+export const LOCAL_TTS_VOICES = [
+  { label: "Voice 2 (Female)", value: "expr-voice-2-f" },
+  { label: "Voice 2 (Male)", value: "expr-voice-2-m" },
+  { label: "Voice 3 (Female)", value: "expr-voice-3-f" },
+  { label: "Voice 3 (Male)", value: "expr-voice-3-m" },
+  { label: "Voice 4 (Female)", value: "expr-voice-4-f" },
+  { label: "Voice 4 (Male)", value: "expr-voice-4-m" },
+  { label: "Voice 5 (Female)", value: "expr-voice-5-f" },
+  { label: "Voice 5 (Male)", value: "expr-voice-5-m" },
 ] as const
 
 // Groq TTS Voice Options (English)
