@@ -1,6 +1,6 @@
-import { useCallback, useMemo } from "react"
+import { useCallback } from "react"
 import { Control, ControlGroup, ControlLabel } from "@renderer/components/ui/control"
-import { Input } from "@renderer/components/ui/input"
+import { Switch } from "@renderer/components/ui/switch"
 import {
   Select,
   SelectContent,
@@ -13,92 +13,23 @@ import {
   useSaveConfigMutation,
 } from "@renderer/lib/query-client"
 import { Config } from "@shared/types"
-import { ModelPresetManager } from "@renderer/components/model-preset-manager"
-import { ProviderModelSelector } from "@renderer/components/model-selector"
-import { ProfileBadgeCompact } from "@renderer/components/profile-badge"
-import { Mic, Bot, Volume2, FileText, CheckCircle2, ChevronDown, ChevronRight } from "lucide-react"
-
+import { Mic, Volume2, Bot, Zap, CheckCircle, AlertCircle } from "lucide-react"
 import {
-  STT_PROVIDERS,
-  CHAT_PROVIDERS,
-  TTS_PROVIDERS,
-  STT_PROVIDER_ID,
-  CHAT_PROVIDER_ID,
-  TTS_PROVIDER_ID,
-  OPENAI_TTS_MODELS,
-  OPENAI_TTS_VOICES,
-  GROQ_TTS_MODELS,
-  GROQ_TTS_VOICES_ENGLISH,
-  GROQ_TTS_VOICES_ARABIC,
-  GEMINI_TTS_MODELS,
-  GEMINI_TTS_VOICES,
   LOCAL_TTS_VOICES,
 } from "@shared/index"
-
-// Badge component to show which features are using this provider
-function ActiveProviderBadge({ label, icon: Icon }: { label: string; icon: React.ElementType }) {
-  return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">
-      <Icon className="h-3 w-3" />
-      {label}
-    </span>
-  )
-}
-
-// Inline provider selector with visual feedback
-function ProviderSelector({
-  label,
-  tooltip,
-  value,
-  onChange,
-  providers,
-  icon: Icon,
-  badge,
-}: {
-  label: React.ReactNode
-  tooltip: string
-  value: string
-  onChange: (value: string) => void
-  providers: readonly { label: string; value: string }[]
-  icon: React.ElementType
-  badge?: React.ReactNode
-}) {
-  return (
-    <Control
-      label={
-        <ControlLabel
-          label={
-            <span className="flex items-center gap-2">
-              <Icon className="h-4 w-4 text-muted-foreground" />
-              {label}
-              {badge}
-            </span>
-          }
-          tooltip={tooltip}
-        />
-      }
-      className="px-3"
-    >
-      <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className="w-[180px]">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {providers.map((provider) => (
-            <SelectItem key={provider.value} value={provider.value}>
-              {provider.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </Control>
-  )
-}
+import { useQuery } from "@tanstack/react-query"
+import { tipcClient } from "@renderer/lib/tipc-client"
 
 export function Component() {
   const configQuery = useConfigQuery()
-
   const saveConfigMutation = useSaveConfigMutation()
+
+  // Check voice pipeline status
+  const pipelineStatusQuery = useQuery({
+    queryKey: ["voicePipelineStatus"],
+    queryFn: () => tipcClient.getVoicePipelineStatus(),
+    refetchInterval: 5000,
+  })
 
   const saveConfig = useCallback(
     (config: Partial<Config>) => {
@@ -112,226 +43,146 @@ export function Component() {
     [saveConfigMutation, configQuery.data],
   )
 
-  // Compute which providers are actively being used for each function
-  const activeProviders = useMemo(() => {
-    if (!configQuery.data) return { openai: [], groq: [], gemini: [], local: [] }
-
-    const stt = configQuery.data.sttProviderId || "openai"
-    const transcript = configQuery.data.transcriptPostProcessingProviderId || "openai"
-    const mcp = configQuery.data.mcpToolsProviderId || "openai"
-    const tts = configQuery.data.ttsProviderId || "openai"
-
-    return {
-      local: [
-        ...(stt === "local" ? [{ label: "STT", icon: Mic }] : []),
-        ...(tts === "local" ? [{ label: "TTS", icon: Volume2 }] : []),
-      ],
-      openai: [
-        ...(stt === "openai" ? [{ label: "STT", icon: Mic }] : []),
-        ...(transcript === "openai" ? [{ label: "Transcript", icon: FileText }] : []),
-        ...(mcp === "openai" ? [{ label: "Agent", icon: Bot }] : []),
-        ...(tts === "openai" ? [{ label: "TTS", icon: Volume2 }] : []),
-      ],
-      groq: [
-        ...(stt === "groq" ? [{ label: "STT", icon: Mic }] : []),
-        ...(transcript === "groq" ? [{ label: "Transcript", icon: FileText }] : []),
-        ...(mcp === "groq" ? [{ label: "Agent", icon: Bot }] : []),
-        ...(tts === "groq" ? [{ label: "TTS", icon: Volume2 }] : []),
-      ],
-      gemini: [
-        ...(transcript === "gemini" ? [{ label: "Transcript", icon: FileText }] : []),
-        ...(mcp === "gemini" ? [{ label: "Agent", icon: Bot }] : []),
-        ...(tts === "gemini" ? [{ label: "TTS", icon: Volume2 }] : []),
-      ],
-    }
-  }, [configQuery.data])
-
-  // Determine which providers are active (selected for at least one feature)
-  const isLocalActive = activeProviders.local.length > 0
-  const isGroqActive = activeProviders.groq.length > 0
-  const isGeminiActive = activeProviders.gemini.length > 0
-
   if (!configQuery.data) return null
+
+  const isVoiceToClaudeEnabled = configQuery.data.voiceToClaudeCodeEnabled ?? true
+  const hasLocalSTT = pipelineStatusQuery.data?.hasSTT ?? false
+  const hasLocalTTS = pipelineStatusQuery.data?.hasTTS ?? false
+  const hasAgent = pipelineStatusQuery.data?.hasAgent ?? false
 
   return (
     <div className="modern-panel h-full overflow-auto px-6 py-4">
+      <div className="grid gap-6">
+        
+        {/* Voice Mode Status */}
+        <ControlGroup title="Voice Mode">
+          <div className="px-3 py-2 bg-primary/5 border-b border-primary/20">
+            <p className="text-xs text-muted-foreground">
+              Voice commands are processed locally and routed to Claude Code. No cloud API keys needed.
+            </p>
+          </div>
+          
+          <Control
+            label={
+              <ControlLabel
+                label={
+                  <span className="flex items-center gap-2">
+                    <Bot className="h-4 w-4 text-primary" />
+                    Voice-to-Claude-Code
+                  </span>
+                }
+                tooltip="Voice commands are sent directly to Claude Code for processing."
+              />
+            }
+            className="px-3"
+          >
+            <Switch
+              checked={isVoiceToClaudeEnabled}
+              onCheckedChange={(checked) => saveConfig({ voiceToClaudeCodeEnabled: checked })}
+            />
+          </Control>
 
-      <div className="grid gap-4">
-        {/* Provider Selection with clear visual hierarchy */}
-        <ControlGroup title="Provider Selection">
+          {isVoiceToClaudeEnabled && (
+            <div className="px-3 py-2 bg-green-500/5 border-t border-green-500/20">
+              <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+                <Zap className="h-3 w-3" />
+                Voice commands will be processed by Claude Code.
+              </p>
+            </div>
+          )}
+        </ControlGroup>
+
+        {/* Local Providers Status */}
+        <ControlGroup title="Local Processing">
           <div className="px-3 py-2 bg-muted/30 border-b">
             <p className="text-xs text-muted-foreground">
-              Select which AI provider to use for each feature. Configure API keys and models in the provider sections below.
+              On-device voice processing for complete privacy.
             </p>
           </div>
 
-          <ProviderSelector
-            label="Voice Transcription (STT)"
-            tooltip="Choose which provider to use for speech-to-text transcription."
-            value={configQuery.data.sttProviderId || "openai"}
-            onChange={(value) => saveConfig({ sttProviderId: value as STT_PROVIDER_ID })}
-            providers={STT_PROVIDERS}
-            icon={Mic}
-          />
-
-          <ProviderSelector
-            label="Transcript Post-Processing"
-            tooltip="Choose which provider to use for transcript post-processing."
-            value={configQuery.data.transcriptPostProcessingProviderId || "openai"}
-            onChange={(value) => saveConfig({ transcriptPostProcessingProviderId: value as CHAT_PROVIDER_ID })}
-            providers={CHAT_PROVIDERS}
-            icon={FileText}
-          />
-
-          <ProviderSelector
-            label={<span className="flex items-center gap-1.5">Agent/MCP Tools <ProfileBadgeCompact /></span>}
-            tooltip="Choose which provider to use for agent mode and MCP tool calling. This setting is saved per-profile."
-            value={configQuery.data.mcpToolsProviderId || "openai"}
-            onChange={(value) => saveConfig({ mcpToolsProviderId: value as CHAT_PROVIDER_ID })}
-            providers={CHAT_PROVIDERS}
-            icon={Bot}
-          />
-
-          <ProviderSelector
-            label="Text-to-Speech (TTS)"
-            tooltip="Choose which provider to use for text-to-speech generation."
-            value={configQuery.data.ttsProviderId || "openai"}
-            onChange={(value) => saveConfig({ ttsProviderId: value as TTS_PROVIDER_ID })}
-            providers={TTS_PROVIDERS}
-            icon={Volume2}
-          />
-        </ControlGroup>
-
-        {/* Local Provider Section - shown when local STT or TTS is selected */}
-        {isLocalActive && (
-          <div className="rounded-lg border border-primary/30 bg-primary/5">
-            <div className="px-3 py-2 flex items-center justify-between w-full">
-              <span className="flex items-center gap-2 text-sm font-semibold">
-                Local (On-Device)
-                <CheckCircle2 className="h-4 w-4 text-primary" />
+          {/* STT Status */}
+          <Control
+            label={
+              <ControlLabel
+                label={
+                  <span className="flex items-center gap-2">
+                    <Mic className="h-4 w-4 text-muted-foreground" />
+                    Speech-to-Text (FluidAudio)
+                  </span>
+                }
+                tooltip="Local voice transcription using FluidAudio/Parakeet"
+              />
+            }
+            className="px-3"
+          >
+            {hasLocalSTT ? (
+              <span className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
+                <CheckCircle className="h-4 w-4" />
+                Ready
               </span>
-              <div className="flex gap-1.5 flex-wrap justify-end">
-                {activeProviders.local.map((badge) => (
-                  <ActiveProviderBadge key={badge.label} label={badge.label} icon={badge.icon} />
-                ))}
-              </div>
-            </div>
-            <div className="divide-y border-t">
-              <div className="px-3 py-2 bg-muted/30 border-b">
-                <p className="text-xs text-muted-foreground">
-                  Zero API keys required. Uses on-device models for privacy and offline operation.
-                </p>
-              </div>
-
-              {/* Local STT Info */}
-              {configQuery.data.sttProviderId === "local" && (
-                <div className="px-3 py-2">
-                  <span className="text-sm font-medium">Speech-to-Text (FluidAudio)</span>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Uses FluidAudio Parakeet - runs ~190x real-time on Apple Silicon. Requires macOS 14.0+.
-                  </p>
-                </div>
-              )}
-
-              {/* Local TTS Voice Selection */}
-              {configQuery.data.ttsProviderId === "local" && (
-                <div className="border-t pt-2">
-                  <div className="px-3 pb-2">
-                    <span className="text-sm font-medium">Text-to-Speech (Kitten TTS)</span>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      25MB CPU-only model. 24kHz audio output.
-                    </p>
-                  </div>
-                  <Control label={<ControlLabel label="TTS Voice" tooltip="Choose the voice for local Kitten TTS" />} className="px-3">
-                    <Select
-                      value={configQuery.data.localTtsVoice || "expr-voice-2-f"}
-                      onValueChange={(value) => saveConfig({ localTtsVoice: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {LOCAL_TTS_VOICES.map((voice) => (
-                          <SelectItem key={voice.value} value={voice.value}>
-                            {voice.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Control>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* OpenAI Compatible Provider Section */}
-        <div className={`rounded-lg border ${activeProviders.openai.length > 0 ? 'border-primary/30 bg-primary/5' : ''}`}>
-          <div className="px-3 py-2 flex items-center justify-between w-full">
-            <span className="flex items-center gap-2 text-sm font-semibold">
-              OpenAI Compatible
-              {activeProviders.openai.length > 0 && (
-                <CheckCircle2 className="h-4 w-4 text-primary" />
-              )}
-            </span>
-            {activeProviders.openai.length > 0 && (
-              <div className="flex gap-1.5 flex-wrap justify-end">
-                {activeProviders.openai.map((badge) => (
-                  <ActiveProviderBadge key={badge.label} label={badge.label} icon={badge.icon} />
-                ))}
-              </div>
+            ) : (
+              <span className="flex items-center gap-1 text-sm text-amber-600 dark:text-amber-400">
+                <AlertCircle className="h-4 w-4" />
+                Not installed
+              </span>
             )}
-          </div>
-          <div className="divide-y border-t">
-            {activeProviders.openai.length === 0 && (
-              <div className="px-3 py-2 bg-muted/30 border-b">
-                <p className="text-xs text-muted-foreground">
-                  This provider is not currently selected for any feature. Select it above to use it.
-                </p>
-              </div>
-            )}
+          </Control>
 
-            <div className="px-3 py-2">
-              <ModelPresetManager />
-              <p className="text-xs text-muted-foreground mt-3">
-                Create presets with individual API keys for different providers (OpenRouter, Together AI, etc.)
-              </p>
+          {!hasLocalSTT && (
+            <div className="px-3 py-2 text-xs text-muted-foreground border-t bg-amber-500/5">
+              Build the STT binary: <code className="bg-muted px-1 rounded">./scripts/build-swift.sh</code>
             </div>
+          )}
 
-            {/* OpenAI TTS - only shown for native OpenAI preset */}
-            <div className="border-t mt-3 pt-3">
-              <div className="px-3 pb-2">
-                <span className="text-sm font-medium">Text-to-Speech</span>
-                <p className="text-xs text-muted-foreground">Only available with native OpenAI API</p>
-              </div>
-            <Control label={<ControlLabel label="TTS Model" tooltip="Choose the OpenAI TTS model to use" />} className="px-3">
+          {/* TTS Status */}
+          <Control
+            label={
+              <ControlLabel
+                label={
+                  <span className="flex items-center gap-2">
+                    <Volume2 className="h-4 w-4 text-muted-foreground" />
+                    Text-to-Speech (Kitten TTS)
+                  </span>
+                }
+                tooltip="Local voice synthesis using Kitten TTS"
+              />
+            }
+            className="px-3"
+          >
+            {hasLocalTTS ? (
+              <span className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
+                <CheckCircle className="h-4 w-4" />
+                Ready
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 text-sm text-amber-600 dark:text-amber-400">
+                <AlertCircle className="h-4 w-4" />
+                Not installed
+              </span>
+            )}
+          </Control>
+
+          {!hasLocalTTS && (
+            <div className="px-3 py-2 text-xs text-muted-foreground border-t bg-amber-500/5">
+              Set up TTS: <code className="bg-muted px-1 rounded">cd speakmcp-tts && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt</code>
+            </div>
+          )}
+
+          {/* Voice Selection (only when TTS is available) */}
+          {hasLocalTTS && (
+            <Control
+              label={<ControlLabel label="Voice" tooltip="Select the TTS voice" />}
+              className="px-3"
+            >
               <Select
-                value={configQuery.data.openaiTtsModel || "tts-1"}
-                onValueChange={(value) => saveConfig({ openaiTtsModel: value as "tts-1" | "tts-1-hd" })}
+                value={configQuery.data.localTtsVoice || "expr-voice-2-f"}
+                onValueChange={(value) => saveConfig({ localTtsVoice: value })}
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-[180px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {OPENAI_TTS_MODELS.map((model) => (
-                    <SelectItem key={model.value} value={model.value}>
-                      {model.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Control>
-
-            <Control label={<ControlLabel label="TTS Voice" tooltip="Choose the voice for OpenAI TTS" />} className="px-3">
-              <Select
-                value={configQuery.data.openaiTtsVoice || "alloy"}
-                onValueChange={(value) => saveConfig({ openaiTtsVoice: value as "alloy" | "echo" | "fable" | "onyx" | "nova" | "shimmer" })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {OPENAI_TTS_VOICES.map((voice) => (
+                  {LOCAL_TTS_VOICES.map((voice) => (
                     <SelectItem key={voice.value} value={voice.value}>
                       {voice.label}
                     </SelectItem>
@@ -339,466 +190,75 @@ export function Component() {
                 </SelectContent>
               </Select>
             </Control>
+          )}
 
-            <Control label={<ControlLabel label="TTS Speed" tooltip="Speech speed (0.25 to 4.0)" />} className="px-3">
-              <Input
-                type="number"
-                min="0.25"
-                max="4.0"
-                step="0.25"
-                placeholder="1.0"
-                defaultValue={configQuery.data.openaiTtsSpeed?.toString()}
-                onChange={(e) => {
-                  const speed = parseFloat(e.currentTarget.value)
-                  if (!isNaN(speed) && speed >= 0.25 && speed <= 4.0) {
-                    saveConfig({ openaiTtsSpeed: speed })
-                  }
-                }}
+          {/* Agent Status */}
+          <Control
+            label={
+              <ControlLabel
+                label={
+                  <span className="flex items-center gap-2">
+                    <Bot className="h-4 w-4 text-muted-foreground" />
+                    Claude Code Agent
+                  </span>
+                }
+                tooltip="ACP agent for processing voice commands"
               />
-            </Control>
+            }
+            className="px-3"
+          >
+            {hasAgent ? (
+              <span className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
+                <CheckCircle className="h-4 w-4" />
+                Configured
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 text-sm text-amber-600 dark:text-amber-400">
+                <AlertCircle className="h-4 w-4" />
+                Not configured
+              </span>
+            )}
+          </Control>
+
+          {!hasAgent && (
+            <div className="px-3 py-2 text-xs text-muted-foreground border-t bg-amber-500/5">
+              Go to Settings → Agents to add Claude Code agent.
             </div>
-          </div>
-        </div>
+          )}
+        </ControlGroup>
 
-        {/* Groq Provider Section - rendered in order based on active status */}
-        {isGroqActive && (
-          <div className="rounded-lg border border-primary/30 bg-primary/5">
-            <button
-              type="button"
-              className="px-3 py-2 flex items-center justify-between w-full hover:bg-muted/30 transition-colors cursor-pointer"
-              onClick={() => saveConfig({ providerSectionCollapsedGroq: !configQuery.data.providerSectionCollapsedGroq })}
-              aria-expanded={!configQuery.data.providerSectionCollapsedGroq}
-              aria-controls="groq-provider-content"
-            >
-              <span className="flex items-center gap-2 text-sm font-semibold">
-                {configQuery.data.providerSectionCollapsedGroq ? (
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                ) : (
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                )}
-                Groq
-                <CheckCircle2 className="h-4 w-4 text-primary" />
-              </span>
-              <div className="flex gap-1.5 flex-wrap justify-end">
-                {activeProviders.groq.map((badge) => (
-                  <ActiveProviderBadge key={badge.label} label={badge.label} icon={badge.icon} />
-                ))}
-              </div>
-            </button>
-            {!configQuery.data.providerSectionCollapsedGroq && (
-              <div id="groq-provider-content" className="divide-y border-t">
-                <Control label="API Key" className="px-3">
-                  <Input
-                    type="password"
-                    defaultValue={configQuery.data.groqApiKey}
-                    onChange={(e) => {
-                      saveConfig({
-                        groqApiKey: e.currentTarget.value,
-                      })
-                    }}
-                  />
-                </Control>
+        {/* TTS Settings */}
+        <ControlGroup title="Text-to-Speech Settings">
+          <Control
+            label={<ControlLabel label="Enable TTS" tooltip="Speak responses aloud" />}
+            className="px-3"
+          >
+            <Switch
+              checked={configQuery.data.ttsEnabled ?? true}
+              onCheckedChange={(checked) => saveConfig({ ttsEnabled: checked })}
+            />
+          </Control>
 
-                <Control label="API Base URL" className="px-3">
-                  <Input
-                    type="url"
-                    placeholder="https://api.groq.com/openai/v1"
-                    defaultValue={configQuery.data.groqBaseUrl}
-                    onChange={(e) => {
-                      saveConfig({
-                        groqBaseUrl: e.currentTarget.value,
-                      })
-                    }}
-                  />
-                </Control>
+          <Control
+            label={<ControlLabel label="Auto-play responses" tooltip="Automatically speak agent responses" />}
+            className="px-3"
+          >
+            <Switch
+              checked={configQuery.data.ttsAutoPlay ?? true}
+              onCheckedChange={(checked) => saveConfig({ ttsAutoPlay: checked })}
+            />
+          </Control>
 
-                <div className="px-3 py-2">
-                  <ProviderModelSelector
-                    providerId="groq"
-                    mcpModel={configQuery.data.mcpToolsGroqModel}
-                    transcriptModel={configQuery.data.transcriptPostProcessingGroqModel}
-                    onMcpModelChange={(value) => saveConfig({ mcpToolsGroqModel: value })}
-                    onTranscriptModelChange={(value) => saveConfig({ transcriptPostProcessingGroqModel: value })}
-                    showMcpModel={true}
-                    showTranscriptModel={true}
-                  />
-                </div>
-
-                {/* Groq TTS */}
-                <div className="border-t mt-3 pt-3">
-                  <div className="px-3 pb-2">
-                    <span className="text-sm font-medium">Text-to-Speech</span>
-                  </div>
-                  <Control label={<ControlLabel label="TTS Model" tooltip="Choose the Groq TTS model to use" />} className="px-3">
-                    <Select
-                      value={configQuery.data.groqTtsModel || "playai-tts"}
-                      onValueChange={(value) => saveConfig({ groqTtsModel: value as "playai-tts" | "playai-tts-arabic" })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {GROQ_TTS_MODELS.map((model) => (
-                          <SelectItem key={model.value} value={model.value}>
-                            {model.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Control>
-
-                  <Control label={<ControlLabel label="TTS Voice" tooltip="Choose the voice for Groq TTS" />} className="px-3">
-                    <Select
-                      value={configQuery.data.groqTtsVoice || "Fritz-PlayAI"}
-                      onValueChange={(value) => saveConfig({ groqTtsVoice: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(configQuery.data.groqTtsModel === "playai-tts-arabic" ? GROQ_TTS_VOICES_ARABIC : GROQ_TTS_VOICES_ENGLISH).map((voice) => (
-                          <SelectItem key={voice.value} value={voice.value}>
-                            {voice.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Control>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Gemini Provider Section - rendered in order based on active status */}
-        {isGeminiActive && (
-          <div className="rounded-lg border border-primary/30 bg-primary/5">
-            <button
-              type="button"
-              className="px-3 py-2 flex items-center justify-between w-full hover:bg-muted/30 transition-colors cursor-pointer"
-              onClick={() => saveConfig({ providerSectionCollapsedGemini: !configQuery.data.providerSectionCollapsedGemini })}
-              aria-expanded={!configQuery.data.providerSectionCollapsedGemini}
-              aria-controls="gemini-provider-content"
-            >
-              <span className="flex items-center gap-2 text-sm font-semibold">
-                {configQuery.data.providerSectionCollapsedGemini ? (
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                ) : (
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                )}
-                Gemini
-                <CheckCircle2 className="h-4 w-4 text-primary" />
-              </span>
-              <div className="flex gap-1.5 flex-wrap justify-end">
-                {activeProviders.gemini.map((badge) => (
-                  <ActiveProviderBadge key={badge.label} label={badge.label} icon={badge.icon} />
-                ))}
-              </div>
-            </button>
-            {!configQuery.data.providerSectionCollapsedGemini && (
-              <div id="gemini-provider-content" className="divide-y border-t">
-                <Control label="API Key" className="px-3">
-                  <Input
-                    type="password"
-                    defaultValue={configQuery.data.geminiApiKey}
-                    onChange={(e) => {
-                      saveConfig({
-                        geminiApiKey: e.currentTarget.value,
-                      })
-                    }}
-                  />
-                </Control>
-
-                <Control label="API Base URL" className="px-3">
-                  <Input
-                    type="url"
-                    placeholder="https://generativelanguage.googleapis.com"
-                    defaultValue={configQuery.data.geminiBaseUrl}
-                    onChange={(e) => {
-                      saveConfig({
-                        geminiBaseUrl: e.currentTarget.value,
-                      })
-                    }}
-                  />
-                </Control>
-
-                <div className="px-3 py-2">
-                  <ProviderModelSelector
-                    providerId="gemini"
-                    mcpModel={configQuery.data.mcpToolsGeminiModel}
-                    transcriptModel={configQuery.data.transcriptPostProcessingGeminiModel}
-                    onMcpModelChange={(value) => saveConfig({ mcpToolsGeminiModel: value })}
-                    onTranscriptModelChange={(value) => saveConfig({ transcriptPostProcessingGeminiModel: value })}
-                    showMcpModel={true}
-                    showTranscriptModel={true}
-                  />
-                </div>
-
-                {/* Gemini TTS */}
-                <div className="border-t mt-3 pt-3">
-                  <div className="px-3 pb-2">
-                    <span className="text-sm font-medium">Text-to-Speech</span>
-                  </div>
-                  <Control label={<ControlLabel label="TTS Model" tooltip="Choose the Gemini TTS model to use" />} className="px-3">
-                    <Select
-                      value={configQuery.data.geminiTtsModel || "gemini-2.5-flash-preview-tts"}
-                      onValueChange={(value) => saveConfig({ geminiTtsModel: value as "gemini-2.5-flash-preview-tts" | "gemini-2.5-pro-preview-tts" })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {GEMINI_TTS_MODELS.map((model) => (
-                          <SelectItem key={model.value} value={model.value}>
-                            {model.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Control>
-
-                  <Control label={<ControlLabel label="TTS Voice" tooltip="Choose the voice for Gemini TTS" />} className="px-3">
-                    <Select
-                      value={configQuery.data.geminiTtsVoice || "Kore"}
-                      onValueChange={(value) => saveConfig({ geminiTtsVoice: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {GEMINI_TTS_VOICES.map((voice) => (
-                          <SelectItem key={voice.value} value={voice.value}>
-                            {voice.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Control>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Inactive Groq Provider Section - shown at bottom when not selected */}
-        {!isGroqActive && (
-          <div className="rounded-lg border">
-            <button
-              type="button"
-              className="px-3 py-2 flex items-center justify-between w-full hover:bg-muted/30 transition-colors cursor-pointer"
-              onClick={() => saveConfig({ providerSectionCollapsedGroq: !configQuery.data.providerSectionCollapsedGroq })}
-              aria-expanded={!configQuery.data.providerSectionCollapsedGroq}
-              aria-controls="groq-provider-content-inactive"
-            >
-              <span className="flex items-center gap-2 text-sm font-semibold">
-                {configQuery.data.providerSectionCollapsedGroq ? (
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                ) : (
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                )}
-                Groq
-              </span>
-            </button>
-            {!configQuery.data.providerSectionCollapsedGroq && (
-              <div id="groq-provider-content-inactive" className="divide-y border-t">
-                <div className="px-3 py-2 bg-muted/30 border-b">
-                  <p className="text-xs text-muted-foreground">
-                    This provider is not currently selected for any feature. Select it above to use it.
-                  </p>
-                </div>
-
-                <Control label="API Key" className="px-3">
-                  <Input
-                    type="password"
-                    defaultValue={configQuery.data.groqApiKey}
-                    onChange={(e) => {
-                      saveConfig({
-                        groqApiKey: e.currentTarget.value,
-                      })
-                    }}
-                  />
-                </Control>
-
-                <Control label="API Base URL" className="px-3">
-                  <Input
-                    type="url"
-                    placeholder="https://api.groq.com/openai/v1"
-                    defaultValue={configQuery.data.groqBaseUrl}
-                    onChange={(e) => {
-                      saveConfig({
-                        groqBaseUrl: e.currentTarget.value,
-                      })
-                    }}
-                  />
-                </Control>
-
-                <div className="px-3 py-2">
-                  <ProviderModelSelector
-                    providerId="groq"
-                    mcpModel={configQuery.data.mcpToolsGroqModel}
-                    transcriptModel={configQuery.data.transcriptPostProcessingGroqModel}
-                    onMcpModelChange={(value) => saveConfig({ mcpToolsGroqModel: value })}
-                    onTranscriptModelChange={(value) => saveConfig({ transcriptPostProcessingGroqModel: value })}
-                    showMcpModel={true}
-                    showTranscriptModel={true}
-                  />
-                </div>
-
-                {/* Groq TTS */}
-                <div className="border-t mt-3 pt-3">
-                  <div className="px-3 pb-2">
-                    <span className="text-sm font-medium">Text-to-Speech</span>
-                  </div>
-                  <Control label={<ControlLabel label="TTS Model" tooltip="Choose the Groq TTS model to use" />} className="px-3">
-                    <Select
-                      value={configQuery.data.groqTtsModel || "playai-tts"}
-                      onValueChange={(value) => saveConfig({ groqTtsModel: value as "playai-tts" | "playai-tts-arabic" })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {GROQ_TTS_MODELS.map((model) => (
-                          <SelectItem key={model.value} value={model.value}>
-                            {model.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Control>
-
-                  <Control label={<ControlLabel label="TTS Voice" tooltip="Choose the voice for Groq TTS" />} className="px-3">
-                    <Select
-                      value={configQuery.data.groqTtsVoice || "Fritz-PlayAI"}
-                      onValueChange={(value) => saveConfig({ groqTtsVoice: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(configQuery.data.groqTtsModel === "playai-tts-arabic" ? GROQ_TTS_VOICES_ARABIC : GROQ_TTS_VOICES_ENGLISH).map((voice) => (
-                          <SelectItem key={voice.value} value={voice.value}>
-                            {voice.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Control>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Inactive Gemini Provider Section - shown at bottom when not selected */}
-        {!isGeminiActive && (
-          <div className="rounded-lg border">
-            <button
-              type="button"
-              className="px-3 py-2 flex items-center justify-between w-full hover:bg-muted/30 transition-colors cursor-pointer"
-              onClick={() => saveConfig({ providerSectionCollapsedGemini: !configQuery.data.providerSectionCollapsedGemini })}
-              aria-expanded={!configQuery.data.providerSectionCollapsedGemini}
-              aria-controls="gemini-provider-content-inactive"
-            >
-              <span className="flex items-center gap-2 text-sm font-semibold">
-                {configQuery.data.providerSectionCollapsedGemini ? (
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                ) : (
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                )}
-                Gemini
-              </span>
-            </button>
-            {!configQuery.data.providerSectionCollapsedGemini && (
-              <div id="gemini-provider-content-inactive" className="divide-y border-t">
-                <div className="px-3 py-2 bg-muted/30 border-b">
-                  <p className="text-xs text-muted-foreground">
-                    This provider is not currently selected for any feature. Select it above to use it.
-                  </p>
-                </div>
-
-                <Control label="API Key" className="px-3">
-                  <Input
-                    type="password"
-                    defaultValue={configQuery.data.geminiApiKey}
-                    onChange={(e) => {
-                      saveConfig({
-                        geminiApiKey: e.currentTarget.value,
-                      })
-                    }}
-                  />
-                </Control>
-
-                <Control label="API Base URL" className="px-3">
-                  <Input
-                    type="url"
-                    placeholder="https://generativelanguage.googleapis.com"
-                    defaultValue={configQuery.data.geminiBaseUrl}
-                    onChange={(e) => {
-                      saveConfig({
-                        geminiBaseUrl: e.currentTarget.value,
-                      })
-                    }}
-                  />
-                </Control>
-
-                <div className="px-3 py-2">
-                  <ProviderModelSelector
-                    providerId="gemini"
-                    mcpModel={configQuery.data.mcpToolsGeminiModel}
-                    transcriptModel={configQuery.data.transcriptPostProcessingGeminiModel}
-                    onMcpModelChange={(value) => saveConfig({ mcpToolsGeminiModel: value })}
-                    onTranscriptModelChange={(value) => saveConfig({ transcriptPostProcessingGeminiModel: value })}
-                    showMcpModel={true}
-                    showTranscriptModel={true}
-                  />
-                </div>
-
-                {/* Gemini TTS */}
-                <div className="border-t mt-3 pt-3">
-                  <div className="px-3 pb-2">
-                    <span className="text-sm font-medium">Text-to-Speech</span>
-                  </div>
-                  <Control label={<ControlLabel label="TTS Model" tooltip="Choose the Gemini TTS model to use" />} className="px-3">
-                    <Select
-                      value={configQuery.data.geminiTtsModel || "gemini-2.5-flash-preview-tts"}
-                      onValueChange={(value) => saveConfig({ geminiTtsModel: value as "gemini-2.5-flash-preview-tts" | "gemini-2.5-pro-preview-tts" })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {GEMINI_TTS_MODELS.map((model) => (
-                          <SelectItem key={model.value} value={model.value}>
-                            {model.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Control>
-
-                  <Control label={<ControlLabel label="TTS Voice" tooltip="Choose the voice for Gemini TTS" />} className="px-3">
-                    <Select
-                      value={configQuery.data.geminiTtsVoice || "Kore"}
-                      onValueChange={(value) => saveConfig({ geminiTtsVoice: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {GEMINI_TTS_VOICES.map((voice) => (
-                          <SelectItem key={voice.value} value={voice.value}>
-                            {voice.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Control>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+          <Control
+            label={<ControlLabel label="Remove code blocks" tooltip="Don't read code blocks aloud" />}
+            className="px-3"
+          >
+            <Switch
+              checked={configQuery.data.ttsRemoveCodeBlocks ?? true}
+              onCheckedChange={(checked) => saveConfig({ ttsRemoveCodeBlocks: checked })}
+            />
+          </Control>
+        </ControlGroup>
       </div>
     </div>
   )

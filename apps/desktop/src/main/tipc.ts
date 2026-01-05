@@ -63,6 +63,8 @@ import { agentSessionTracker } from "./agent-session-tracker"
 import { messageQueueService } from "./message-queue-service"
 import { profileService } from "./profile-service"
 import { acpService, ACPRunRequest } from "./acp-service"
+import { processVoiceCommand, isVoicePipelineAvailable } from "./voice-agent-pipeline"
+import { workspaceManager, Workspace, WorkspaceSession } from "./workspace-manager"
 
 async function initializeMcpWithProgress(config: Config, sessionId: string): Promise<void> {
   const shouldStop = () => agentSessionStateManager.shouldStopSession(sessionId)
@@ -378,7 +380,6 @@ import { updateTrayIcon } from "./tray"
 import { isAccessibilityGranted } from "./utils"
 import { writeText, writeTextWithFocusRestore } from "./keyboard"
 import { preprocessTextForTTS, validateTTSText } from "@speakmcp/shared"
-import { preprocessTextForTTSWithLLM } from "./tts-llm-preprocessing"
 
 
 const t = tipc.create()
@@ -954,68 +955,12 @@ export const router = {
     .action(async ({ input }) => {
       fs.mkdirSync(recordingsFolder, { recursive: true })
 
-      const config = configStore.get()
-      let transcript: string
-
-      // Use local STT if configured
-      if (config.sttProviderId === "local") {
-        const result = await transcribeLocal(input.recording)
-        if (!result.success) {
-          throw new Error(result.error || "Local STT failed")
-        }
-        transcript = await postProcessTranscript(result.text)
-      } else {
-        // Use OpenAI or Groq for transcription
-        const form = new FormData()
-        form.append(
-          "file",
-          new File([input.recording], "recording.webm", { type: "audio/webm" }),
-        )
-        form.append(
-          "model",
-          config.sttProviderId === "groq" ? "whisper-large-v3" : "whisper-1",
-        )
-        form.append("response_format", "json")
-
-        // Add prompt parameter for Groq if provided
-        if (config.sttProviderId === "groq" && config.groqSttPrompt?.trim()) {
-          form.append("prompt", config.groqSttPrompt.trim())
-        }
-
-        // Add language parameter if specified
-        const languageCode = config.sttProviderId === "groq"
-          ? config.groqSttLanguage || config.sttLanguage
-          : config.openaiSttLanguage || config.sttLanguage;
-
-        if (languageCode && languageCode !== "auto") {
-          form.append("language", languageCode)
-        }
-
-        const groqBaseUrl = config.groqBaseUrl || "https://api.groq.com/openai/v1"
-        const openaiBaseUrl = config.openaiBaseUrl || "https://api.openai.com/v1"
-
-        const transcriptResponse = await fetch(
-          config.sttProviderId === "groq"
-            ? `${groqBaseUrl}/audio/transcriptions`
-            : `${openaiBaseUrl}/audio/transcriptions`,
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${config.sttProviderId === "groq" ? config.groqApiKey : config.openaiApiKey}`,
-            },
-            body: form,
-          },
-        )
-
-        if (!transcriptResponse.ok) {
-          const message = `${transcriptResponse.statusText} ${(await transcriptResponse.text()).slice(0, 300)}`
-
-          throw new Error(message)
-        }
-
-        const json: { text: string } = await transcriptResponse.json()
-        transcript = await postProcessTranscript(json.text)
+      // Use local STT only (no cloud providers)
+      const result = await transcribeLocal(input.recording)
+      if (!result.success) {
+        throw new Error(result.error || "Local STT failed. Make sure FluidAudio is installed.")
       }
+      const transcript = await postProcessTranscript(result.text)
 
       const history = getRecordingHistory()
       const item: RecordingHistoryItem = {
@@ -1044,19 +989,131 @@ export const router = {
         panel.hide()
       }
 
-      // paste
-      clipboard.writeText(transcript)
-      if (isAccessibilityGranted()) {
-        // Add a small delay for regular transcripts too to be less disruptive
-        const pasteDelay = 500 // 0.5 second delay for regular transcripts
-        setTimeout(async () => {
-          try {
-            await writeTextWithFocusRestore(transcript)
-          } catch (error) {
-            // Don't throw here, just log the error so the recording still gets saved
-          }
-        }, pasteDelay)
+      // paste (legacy clipboard mode)
+      const config2 = configStore.get()
+      if (!config2.voiceToClaudeCodeEnabled) {
+        // Only paste if not using voice-to-Claude-Code mode
+        clipboard.writeText(transcript)
+        if (isAccessibilityGranted()) {
+          const pasteDelay = 500
+          setTimeout(async () => {
+            try {
+              await writeTextWithFocusRestore(transcript)
+            } catch (error) {
+              // Don't throw here, just log the error so the recording still gets saved
+            }
+          }, pasteDelay)
+        }
       }
+    }),
+
+  // Voice command routed to Claude Code via ACP
+  createVoiceCommand: t.procedure
+    .input<{
+      recording: ArrayBuffer
+      workingDirectory?: string
+      speakResponse?: boolean
+    }>()
+    .action(async ({ input }) => {
+      const pipelineStatus = isVoicePipelineAvailable()
+      if (!pipelineStatus.available) {
+        throw new Error(
+          !pipelineStatus.hasSTT 
+            ? "Local STT not available. Please build the speakmcp-stt binary."
+            : "No Claude Code agent configured. Please add an ACP agent in settings."
+        )
+      }
+
+      const result = await processVoiceCommand(input.recording, {
+        workingDirectory: input.workingDirectory,
+        speakResponse: input.speakResponse ?? true,
+      })
+
+      if (!result.success) {
+        throw new Error(result.error || "Voice command failed")
+      }
+
+      return {
+        transcript: result.transcript,
+        response: result.response,
+        sessionId: result.sessionId,
+      }
+    }),
+
+  // Check voice pipeline availability
+  getVoicePipelineStatus: t.procedure
+    .action(async () => {
+      return isVoicePipelineAvailable()
+    }),
+
+  // Workspace management procedures
+  getWorkspaces: t.procedure
+    .action(async () => {
+      return workspaceManager.getWorkspaces()
+    }),
+
+  getWorkspace: t.procedure
+    .input<string>()
+    .action(async ({ input: id }) => {
+      return workspaceManager.getWorkspace(id)
+    }),
+
+  addWorkspace: t.procedure
+    .input<Omit<Workspace, "id">>()
+    .action(async ({ input }) => {
+      return workspaceManager.addWorkspace(input)
+    }),
+
+  updateWorkspace: t.procedure
+    .input<{ id: string; updates: Partial<Omit<Workspace, "id">> }>()
+    .action(async ({ input }) => {
+      return workspaceManager.updateWorkspace(input.id, input.updates)
+    }),
+
+  removeWorkspace: t.procedure
+    .input<string>()
+    .action(async ({ input: id }) => {
+      return workspaceManager.removeWorkspace(id)
+    }),
+
+  getFocusedWorkspace: t.procedure
+    .action(async () => {
+      return workspaceManager.getFocusedWorkspace()
+    }),
+
+  setFocusedWorkspace: t.procedure
+    .input<string | null>()
+    .action(async ({ input: id }) => {
+      workspaceManager.setFocusedWorkspace(id)
+    }),
+
+  getWorkspaceSession: t.procedure
+    .input<string>()
+    .action(async ({ input: workspaceId }) => {
+      return workspaceManager.getSession(workspaceId)
+    }),
+
+  getAllWorkspaceSessions: t.procedure
+    .action(async () => {
+      return workspaceManager.getAllSessions()
+    }),
+
+  startWorkspaceSession: t.procedure
+    .input<string>()
+    .action(async ({ input: workspaceId }) => {
+      return workspaceManager.startSession(workspaceId)
+    }),
+
+  stopWorkspaceSession: t.procedure
+    .input<string>()
+    .action(async ({ input: workspaceId }) => {
+      await workspaceManager.stopSession(workspaceId)
+    }),
+
+  sendWorkspaceCommand: t.procedure
+    .input<{ workspaceId: string; command: string }>()
+    .action(async ({ input }) => {
+      return workspaceManager.sendCommand(input.workspaceId, input.command)
     }),
 
   createTextInput: t.procedure
@@ -2058,47 +2115,24 @@ export const router = {
   generateSpeech: t.procedure
     .input<{
       text: string
-      providerId?: string
       voice?: string
-      model?: string
-      speed?: number
     }>()
     .action(async ({ input }) => {
-
-
-
-
-
-
-
-
-
       const config = configStore.get()
-
-
 
       if (!config.ttsEnabled) {
         throw new Error("Text-to-Speech is not enabled")
       }
 
-      const providerId = input.providerId || config.ttsProviderId || "openai"
-
-      // Preprocess text for TTS
+      // Preprocess text for TTS (regex-based only, no LLM)
       let processedText = input.text
-
       if (config.ttsPreprocessingEnabled !== false) {
-        // Use LLM-based preprocessing if enabled, otherwise fall back to regex
-        if (config.ttsUseLLMPreprocessing) {
-          processedText = await preprocessTextForTTSWithLLM(input.text, config.ttsLLMPreprocessingProviderId)
-        } else {
-          // Use regex-based preprocessing
-          const preprocessingOptions = {
-            removeCodeBlocks: config.ttsRemoveCodeBlocks ?? true,
-            removeUrls: config.ttsRemoveUrls ?? true,
-            convertMarkdown: config.ttsConvertMarkdown ?? true,
-          }
-          processedText = preprocessTextForTTS(input.text, preprocessingOptions)
+        const preprocessingOptions = {
+          removeCodeBlocks: config.ttsRemoveCodeBlocks ?? true,
+          removeUrls: config.ttsRemoveUrls ?? true,
+          convertMarkdown: config.ttsConvertMarkdown ?? true,
         }
+        processedText = preprocessTextForTTS(input.text, preprocessingOptions)
       }
 
       // Validate processed text
@@ -2108,29 +2142,14 @@ export const router = {
       }
 
       try {
-        let audioBuffer: ArrayBuffer
-
-
-
-        if (providerId === "local") {
-          const localVoice = config.localTtsVoice || "expr-voice-2-f"
-          audioBuffer = await synthesizeLocal(processedText, localVoice)
-        } else if (providerId === "openai") {
-          audioBuffer = await generateOpenAITTS(processedText, input, config)
-        } else if (providerId === "groq") {
-          audioBuffer = await generateGroqTTS(processedText, input, config)
-        } else if (providerId === "gemini") {
-          audioBuffer = await generateGeminiTTS(processedText, input, config)
-        } else {
-          throw new Error(`Unsupported TTS provider: ${providerId}`)
-        }
-
-
+        // Local TTS only (Kitten TTS)
+        const localVoice = input.voice || config.localTtsVoice || "expr-voice-2-f"
+        const audioBuffer = await synthesizeLocal(processedText, localVoice)
 
         return {
           audio: audioBuffer,
           processedText,
-          provider: providerId,
+          provider: "local",
         }
       } catch (error) {
         diagnosticsService.logError("tts", "TTS generation failed", error)
@@ -2894,182 +2913,4 @@ export const router = {
       return getDelegatedRunDetails(input.runId)
     }),
 }
-
-// TTS Provider Implementation Functions
-
-async function generateOpenAITTS(
-  text: string,
-  input: { voice?: string; model?: string; speed?: number },
-  config: Config
-): Promise<ArrayBuffer> {
-  const model = input.model || config.openaiTtsModel || "tts-1"
-  const voice = input.voice || config.openaiTtsVoice || "alloy"
-  const speed = input.speed || config.openaiTtsSpeed || 1.0
-  const responseFormat = config.openaiTtsResponseFormat || "mp3"
-
-  const baseUrl = config.openaiBaseUrl || "https://api.openai.com/v1"
-  const apiKey = config.openaiApiKey
-
-
-
-  if (!apiKey) {
-    throw new Error("OpenAI API key is required for TTS")
-  }
-
-  const requestBody = {
-    model,
-    input: text,
-    voice,
-    speed,
-    response_format: responseFormat,
-  }
-
-
-
-  const response = await fetch(`${baseUrl}/audio/speech`, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(requestBody),
-  })
-
-
-
-  if (!response.ok) {
-    const errorText = await response.text()
-    throw new Error(`OpenAI TTS API error: ${response.statusText} - ${errorText}`)
-  }
-
-  const audioBuffer = await response.arrayBuffer()
-
-  return audioBuffer
-}
-
-async function generateGroqTTS(
-  text: string,
-  input: { voice?: string; model?: string },
-  config: Config
-): Promise<ArrayBuffer> {
-  const model = input.model || config.groqTtsModel || "playai-tts"
-  const voice = input.voice || config.groqTtsVoice || "Fritz-PlayAI"
-
-  const baseUrl = config.groqBaseUrl || "https://api.groq.com/openai/v1"
-  const apiKey = config.groqApiKey
-
-
-
-  if (!apiKey) {
-    throw new Error("Groq API key is required for TTS")
-  }
-
-  const requestBody = {
-    model,
-    input: text,
-    voice,
-    response_format: "wav",
-  }
-
-
-
-  const response = await fetch(`${baseUrl}/audio/speech`, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(requestBody),
-  })
-
-
-
-  if (!response.ok) {
-    const errorText = await response.text()
-
-    // Check for specific error cases and provide helpful messages
-    if (errorText.includes("requires terms acceptance")) {
-      throw new Error("Groq TTS model requires terms acceptance. Please visit https://console.groq.com/playground?model=playai-tts to accept the terms for the PlayAI TTS model.")
-    }
-
-    throw new Error(`Groq TTS API error: ${response.statusText} - ${errorText}`)
-  }
-
-  const audioBuffer = await response.arrayBuffer()
-
-  return audioBuffer
-}
-
-async function generateGeminiTTS(
-  text: string,
-  input: { voice?: string; model?: string },
-  config: Config
-): Promise<ArrayBuffer> {
-  const model = input.model || config.geminiTtsModel || "gemini-2.5-flash-preview-tts"
-  const voice = input.voice || config.geminiTtsVoice || "Kore"
-
-  const baseUrl = config.geminiBaseUrl || "https://generativelanguage.googleapis.com"
-  const apiKey = config.geminiApiKey
-
-  if (!apiKey) {
-    throw new Error("Gemini API key is required for TTS")
-  }
-
-  const requestBody = {
-    contents: [{
-      parts: [{ text }]
-    }],
-    generationConfig: {
-      responseModalities: ["AUDIO"],
-      speechConfig: {
-        voiceConfig: {
-          prebuiltVoiceConfig: {
-            voiceName: voice
-          }
-        }
-      }
-    }
-  }
-
-  const url = `${baseUrl}/v1beta/models/${model}:generateContent?key=${apiKey}`
-
-
-
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(requestBody),
-  })
-
-
-
-  if (!response.ok) {
-    const errorText = await response.text()
-    throw new Error(`Gemini TTS API error: ${response.statusText} - ${errorText}`)
-  }
-
-  const result = await response.json()
-
-
-
-  const audioData = result.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data
-
-  if (!audioData) {
-    throw new Error("No audio data received from Gemini TTS API")
-  }
-
-  // Convert base64 to ArrayBuffer
-  const binaryString = atob(audioData)
-  const bytes = new Uint8Array(binaryString.length)
-  for (let i = 0; i < binaryString.length; i++) {
-    bytes[i] = binaryString.charCodeAt(i)
-  }
-
-
-
-  return bytes.buffer
-}
-
 export type Router = typeof router

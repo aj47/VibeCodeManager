@@ -3,8 +3,6 @@
  *
  * This module provides task analysis and agent matching capabilities to help
  * the main AI assistant decide when to delegate work to specialized sub-agents.
- * 
- * Supports both local ACP agents and remote A2A agents for unified delegation routing.
  *
  * @example
  * ```typescript
@@ -20,7 +18,6 @@
 
 import { acpRegistry } from './acp-registry'
 import type { ACPAgentDefinition, ACPAgentInstance } from './types'
-import { a2aAgentRegistry, type RegisteredAgent as A2ARegisteredAgent } from '../a2a/agent-registry'
 
 type ACPAgentForDelegationPrompt = {
   definition: {
@@ -293,33 +290,11 @@ export class ACPSmartRouter {
   }
 
   /**
-   * Convert an A2A registered agent to a unified agent representation.
-   */
-  private a2aToUnifiedAgent(agent: A2ARegisteredAgent): UnifiedAgent {
-    const skills = agent.card.skills || []
-    // A2A skills have name and tags; we use skill names as capabilities
-    const capabilities = skills.map(s => s.name.toLowerCase())
-    
-    return {
-      name: agent.card.name,
-      displayName: agent.card.name,
-      description: agent.card.description,
-      capabilities,
-      isA2A: true,
-      baseUrl: agent.card.url,
-    }
-  }
-
-  /**
-   * Get all available agents (both ACP and A2A) as unified agents.
+   * Get all available ACP agents as unified agents.
    */
   getAllUnifiedAgents(): UnifiedAgent[] {
     const acpAgents = acpRegistry.getReadyAgents().map(a => this.acpToUnifiedAgent(a))
-    const a2aAgents = a2aAgentRegistry
-      .findAgents({ isReachable: true })
-      .map(a => this.a2aToUnifiedAgent(a))
-    
-    return [...acpAgents, ...a2aAgents]
+    return acpAgents
   }
 
   /**

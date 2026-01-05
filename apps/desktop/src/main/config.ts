@@ -76,10 +76,17 @@ const getConfig = () => {
 	    launchAtLogin: false,
 	    hideDockIcon: false,
 
-    // TTS defaults
+    // Voice-to-Claude-Code mode (local-first, no API keys needed)
+    voiceToClaudeCodeEnabled: true,
+    
+    // STT defaults (local-first)
+    sttProviderId: "local",
+    
+    // TTS defaults (local-first)
     ttsEnabled: true,
     ttsAutoPlay: true,
-    ttsProviderId: "openai",
+    ttsProviderId: "local",
+    localTtsVoice: "expr-voice-2-f",
     ttsPreprocessingEnabled: true,
     ttsRemoveCodeBlocks: true,
     ttsRemoveUrls: true,
@@ -135,7 +142,22 @@ const getConfig = () => {
 	    remoteServerCorsOrigins: ["*"],
 	    remoteServerAutoShowPanel: false, // Don't auto-show panel by default for remote sessions
 
-
+    // Default Claude Code agent (the only supported agent)
+    acpAgents: [
+      {
+        name: "claude-code",
+        displayName: "Claude Code",
+        description: "Anthropic's Claude Code for voice-driven development",
+        capabilities: ["coding", "debugging", "refactoring", "documentation"],
+        autoSpawn: true,
+        enabled: true,
+        connection: {
+          type: "stdio" as const,
+          command: "claude",
+          args: ["--dangerously-skip-permissions"],
+        },
+      },
+    ],
   }
 
   try {

@@ -44,29 +44,14 @@ export const Component = () => {
       icon: "i-mingcute-settings-3-line",
     },
     {
-      text: "Models",
-      href: "/settings/models",
-      icon: "i-mingcute-brain-line",
-    },
-    {
-      text: "Profile",
-      href: "/settings/tools",
-      icon: "i-mingcute-user-setting-line",
-    },
-    {
-      text: "MCP Tools",
-      href: "/settings/mcp-tools",
-      icon: "i-mingcute-tool-line",
-    },
-    {
-      text: "Remote Server",
-      href: "/settings/remote-server",
-      icon: "i-mingcute-server-line",
-    },
-    {
-      text: "ACP Agents",
+      text: "Agents",
       href: "/settings/acp-agents",
       icon: "i-mingcute-robot-line",
+    },
+    {
+      text: "Advanced",
+      href: "/settings/models",
+      icon: "i-mingcute-brain-line",
     },
   ]
 
@@ -75,6 +60,9 @@ export const Component = () => {
   const routeAliases: Record<string, string> = {
     "/settings/general": "/settings",
     "/settings/providers": "/settings/models",
+    "/settings/tools": "/settings/models",
+    "/settings/mcp-tools": "/settings/models",
+    "/settings/remote-server": "/settings/models",
   }
 
   // Check if current path matches the nav link (including aliases)

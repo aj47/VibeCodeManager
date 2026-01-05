@@ -360,6 +360,17 @@ export interface ModelPreset {
 // ACP Agent Configuration Types
 export type ACPConnectionType = "stdio" | "remote" | "internal"
 
+// Workspace Configuration for parallel Claude Code sessions
+export interface WorkspaceConfig {
+  id: string
+  name: string
+  path: string  // Working directory
+  claudeCodeArgs?: string[]
+  mcpServers?: string[]  // MCP server names to enable
+  autoStart?: boolean
+  agentName?: string  // Name of the ACP agent to use
+}
+
 export interface ACPAgentConfig {
   // Unique identifier for the agent
   name: string
@@ -411,6 +422,9 @@ export type Config = {
   themePreference?: "system" | "light" | "dark"
 
   sttProviderId?: STT_PROVIDER_ID
+
+  // Voice-to-Claude-Code mode (routes voice commands to ACP agent instead of clipboard)
+  voiceToClaudeCodeEnabled?: boolean
 
   openaiApiKey?: string
   openaiBaseUrl?: string
@@ -600,6 +614,9 @@ export type Config = {
 
   // ACP Agent Configuration
   acpAgents?: ACPAgentConfig[]
+
+  // Workspace Configuration (for parallel Claude Code sessions)
+  workspaces?: WorkspaceConfig[]
 
   // A2A (Agent-to-Agent) Configuration
   a2aConfig?: {

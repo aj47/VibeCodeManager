@@ -475,10 +475,53 @@ export function Component() {
             </div>
           }
         >
+          {/* Quick Setup for Claude Code if not present */}
+          {!isLoading && !agents.some((a: ACPAgentConfig) => 
+            a.name.toLowerCase().includes('claude') || 
+            a.connection?.command?.includes('claude')
+          ) && (
+            <div className="mx-3 my-2 p-4 rounded-lg border-2 border-dashed border-primary/50 bg-primary/5">
+              <div className="flex items-start gap-3">
+                <Bot className="h-8 w-8 text-primary shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <h3 className="font-semibold text-primary">Set up Claude Code</h3>
+                  <p className="text-sm text-muted-foreground mt-1 mb-3">
+                    Claude Code is recommended for voice commands. Install the ACP adapter:
+                  </p>
+                  <code className="block p-2 rounded bg-background text-sm font-mono mb-3">
+                    npm install -g @anthropic-ai/claude-code-acp
+                  </code>
+                  <Button 
+                    onClick={() => {
+                      // Pre-fill with Claude Code preset
+                      const preset = AGENT_PRESETS["claude-code"]
+                      if (preset) {
+                        saveMutation.mutate({
+                          name: preset.name!,
+                          displayName: preset.displayName!,
+                          description: preset.description,
+                          capabilities: preset.capabilities,
+                          connection: preset.connection as any,
+                          enabled: true,
+                          autoSpawn: true,
+                        })
+                      }
+                    }}
+                    className="gap-2"
+                    disabled={saveMutation.isPending}
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add Claude Code Agent
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="px-3 py-2">
-            <Button onClick={() => setShowAddDialog(true)} className="gap-2">
+            <Button onClick={() => setShowAddDialog(true)} variant="outline" className="gap-2">
               <Plus className="h-4 w-4" />
-              Add Agent
+              Add Custom Agent
             </Button>
           </div>
 
@@ -486,7 +529,7 @@ export function Component() {
             <div className="px-3 py-4 text-center text-muted-foreground">Loading...</div>
           ) : agents.length === 0 ? (
             <div className="px-3 py-4 text-center text-muted-foreground">
-              No ACP agents configured. Click "Add Agent" to get started.
+              No agents configured yet.
             </div>
           ) : (
             <div className="divide-y">

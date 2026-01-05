@@ -189,6 +189,19 @@ export function Component() {
       duration: number
       transcript?: string
     }) => {
+      const config = configQuery.data
+      const voiceToClaudeEnabled = config?.voiceToClaudeCodeEnabled ?? false
+
+      // If voice-to-Claude-Code mode is enabled, use the voice command pipeline
+      if (voiceToClaudeEnabled) {
+        const result = await tipcClient.createVoiceCommand({
+          recording: await blob.arrayBuffer(),
+          speakResponse: true,
+        })
+        return result
+      }
+
+      // Legacy clipboard paste mode
       // If we have a transcript, start a conversation with it
       if (transcript && !isConversationActive) {
         await startNewConversation(transcript, "user")
