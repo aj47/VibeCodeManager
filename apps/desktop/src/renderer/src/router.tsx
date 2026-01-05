@@ -58,6 +58,10 @@ export const router: ReturnType<typeof createBrowserRouter> =
           path: "settings/projects",
           lazy: () => import("./pages/settings-projects"),
         },
+        {
+          path: "settings/claude-config",
+          lazy: () => import("./pages/settings-claude-config"),
+        },
 
       ],
     },

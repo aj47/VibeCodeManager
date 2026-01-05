@@ -2965,5 +2965,363 @@ export const router = {
       const { getDelegatedRunDetails } = await import("./acp/acp-router-tools")
       return getDelegatedRunDetails(input.runId)
     }),
+
+  // ============================================================================
+  // Claude Code Configuration Handlers
+  // For managing MCP servers, hooks, settings, and CLAUDE.md at global/project level
+  // ============================================================================
+
+  // Read global Claude config (~/.claude.json)
+  readClaudeGlobalConfig: t.procedure.action(async () => {
+    const homedir = app.getPath("home")
+    const configPath = path.join(homedir, ".claude.json")
+    try {
+      if (fs.existsSync(configPath)) {
+        const content = fs.readFileSync(configPath, "utf-8")
+        return JSON.parse(content)
+      }
+      return null
+    } catch (error) {
+      logApp("[ClaudeConfig] Error reading global config:", error)
+      return null
+    }
+  }),
+
+  // Read user settings (~/.claude/settings.json)
+  readClaudeUserSettings: t.procedure.action(async () => {
+    const homedir = app.getPath("home")
+    const settingsPath = path.join(homedir, ".claude", "settings.json")
+    try {
+      if (fs.existsSync(settingsPath)) {
+        const content = fs.readFileSync(settingsPath, "utf-8")
+        return JSON.parse(content)
+      }
+      return null
+    } catch (error) {
+      logApp("[ClaudeConfig] Error reading user settings:", error)
+      return null
+    }
+  }),
+
+  // Read user commands (~/.claude/commands/)
+  readUserCommands: t.procedure.action(async () => {
+    const homedir = app.getPath("home")
+    const commandsDir = path.join(homedir, ".claude", "commands")
+    try {
+      if (!fs.existsSync(commandsDir)) {
+        return []
+      }
+      const files = fs.readdirSync(commandsDir)
+      const commands: Array<{ name: string; content: string }> = []
+      for (const file of files) {
+        if (file.endsWith(".md") && !file.includes(".bak.")) {
+          const filePath = path.join(commandsDir, file)
+          const content = fs.readFileSync(filePath, "utf-8")
+          commands.push({ name: file.replace(".md", ""), content })
+        }
+      }
+      return commands
+    } catch (error) {
+      logApp("[ClaudeConfig] Error reading user commands:", error)
+      return []
+    }
+  }),
+
+  // Write a user command (~/.claude/commands/<name>.md)
+  writeUserCommand: t.procedure
+    .input<{ name: string; content: string }>()
+    .action(async ({ input }) => {
+      const homedir = app.getPath("home")
+      const commandsDir = path.join(homedir, ".claude", "commands")
+      const commandPath = path.join(commandsDir, `${input.name}.md`)
+      try {
+        if (!fs.existsSync(commandsDir)) {
+          fs.mkdirSync(commandsDir, { recursive: true })
+        }
+        fs.writeFileSync(commandPath, input.content, "utf-8")
+        return { success: true }
+      } catch (error) {
+        logApp("[ClaudeConfig] Error writing user command:", error)
+        return { success: false, error: error instanceof Error ? error.message : String(error) }
+      }
+    }),
+
+  // Delete a user command
+  deleteUserCommand: t.procedure
+    .input<{ name: string }>()
+    .action(async ({ input }) => {
+      const homedir = app.getPath("home")
+      const commandPath = path.join(homedir, ".claude", "commands", `${input.name}.md`)
+      try {
+        if (fs.existsSync(commandPath)) {
+          fs.unlinkSync(commandPath)
+        }
+        return { success: true }
+      } catch (error) {
+        logApp("[ClaudeConfig] Error deleting user command:", error)
+        return { success: false, error: error instanceof Error ? error.message : String(error) }
+      }
+    }),
+
+  // Read project skills (.claude/skills/ or .claude/agents/ directory)
+  // Skills can be:
+  // 1. Directory-based: .claude/skills/<name>/SKILL.md (new format)
+  // 2. File-based: .claude/agents/<name>.md (old format)
+  readProjectSkills: t.procedure
+    .input<{ projectPath: string }>()
+    .action(async ({ input }) => {
+      const skills: Array<{ name: string; content: string; type: "skills" | "agents" }> = []
+
+      // Check .claude/skills/ directory (new format - each skill is a folder with SKILL.md)
+      const skillsDir = path.join(input.projectPath, ".claude", "skills")
+      try {
+        if (fs.existsSync(skillsDir)) {
+          const entries = fs.readdirSync(skillsDir, { withFileTypes: true })
+          for (const entry of entries) {
+            if (entry.isDirectory()) {
+              const skillMdPath = path.join(skillsDir, entry.name, "SKILL.md")
+              if (fs.existsSync(skillMdPath)) {
+                const content = fs.readFileSync(skillMdPath, "utf-8")
+                skills.push({ name: entry.name, content, type: "skills" })
+              }
+            }
+          }
+        }
+      } catch (error) {
+        logApp("[ClaudeConfig] Error reading skills directory:", error)
+      }
+
+      // Check .claude/agents/ directory (old format - direct .md files)
+      const agentsDir = path.join(input.projectPath, ".claude", "agents")
+      try {
+        if (fs.existsSync(agentsDir)) {
+          const files = fs.readdirSync(agentsDir)
+          for (const file of files) {
+            if (file.endsWith(".md")) {
+              const filePath = path.join(agentsDir, file)
+              const content = fs.readFileSync(filePath, "utf-8")
+              skills.push({ name: file.replace(".md", ""), content, type: "agents" })
+            }
+          }
+        }
+      } catch (error) {
+        logApp("[ClaudeConfig] Error reading agents directory:", error)
+      }
+
+      return skills
+    }),
+
+  // Write a project skill
+  // For "skills" type: writes to .claude/skills/<name>/SKILL.md
+  // For "agents" type: writes to .claude/agents/<name>.md
+  writeProjectSkill: t.procedure
+    .input<{ projectPath: string; name: string; content: string; type?: "skills" | "agents" }>()
+    .action(async ({ input }) => {
+      const skillType = input.type || "skills" // Default to new format
+      let skillPath: string
+
+      if (skillType === "skills") {
+        const skillDir = path.join(input.projectPath, ".claude", "skills", input.name)
+        skillPath = path.join(skillDir, "SKILL.md")
+        if (!fs.existsSync(skillDir)) {
+          fs.mkdirSync(skillDir, { recursive: true })
+        }
+      } else {
+        const agentsDir = path.join(input.projectPath, ".claude", "agents")
+        skillPath = path.join(agentsDir, `${input.name}.md`)
+        if (!fs.existsSync(agentsDir)) {
+          fs.mkdirSync(agentsDir, { recursive: true })
+        }
+      }
+      try {
+        fs.writeFileSync(skillPath, input.content, "utf-8")
+        return { success: true }
+      } catch (error) {
+        logApp("[ClaudeConfig] Error writing project skill:", error)
+        return { success: false, error: error instanceof Error ? error.message : String(error) }
+      }
+    }),
+
+  // Delete a project skill
+  // Checks both .claude/skills/<name>/ and .claude/agents/<name>.md
+  deleteProjectSkill: t.procedure
+    .input<{ projectPath: string; name: string; type?: "skills" | "agents" }>()
+    .action(async ({ input }) => {
+      try {
+        // Try skills directory first (new format)
+        const skillDir = path.join(input.projectPath, ".claude", "skills", input.name)
+        if (fs.existsSync(skillDir)) {
+          // Remove entire skill directory
+          fs.rmSync(skillDir, { recursive: true })
+          return { success: true }
+        }
+
+        // Try agents directory (old format)
+        const agentPath = path.join(input.projectPath, ".claude", "agents", `${input.name}.md`)
+        if (fs.existsSync(agentPath)) {
+          fs.unlinkSync(agentPath)
+          return { success: true }
+        }
+
+        return { success: true } // Already doesn't exist
+      } catch (error) {
+        logApp("[ClaudeConfig] Error deleting project skill:", error)
+        return { success: false, error: error instanceof Error ? error.message : String(error) }
+      }
+    }),
+
+  // Read project MCP servers (.mcp.json)
+  readProjectMcpConfig: t.procedure
+    .input<{ projectPath: string }>()
+    .action(async ({ input }) => {
+      const configPath = path.join(input.projectPath, ".mcp.json")
+      try {
+        if (fs.existsSync(configPath)) {
+          const content = fs.readFileSync(configPath, "utf-8")
+          return JSON.parse(content)
+        }
+        return null
+      } catch (error) {
+        logApp("[ClaudeConfig] Error reading project MCP config:", error)
+        return null
+      }
+    }),
+
+  // Write project MCP servers (.mcp.json)
+  writeProjectMcpConfig: t.procedure
+    .input<{ projectPath: string; config: Record<string, unknown> }>()
+    .action(async ({ input }) => {
+      const configPath = path.join(input.projectPath, ".mcp.json")
+      try {
+        fs.writeFileSync(configPath, JSON.stringify(input.config, null, 2), "utf-8")
+        return { success: true }
+      } catch (error) {
+        logApp("[ClaudeConfig] Error writing project MCP config:", error)
+        return { success: false, error: error instanceof Error ? error.message : String(error) }
+      }
+    }),
+
+  // Read project settings (.claude/settings.json)
+  readProjectSettings: t.procedure
+    .input<{ projectPath: string }>()
+    .action(async ({ input }) => {
+      const settingsPath = path.join(input.projectPath, ".claude", "settings.json")
+      try {
+        if (fs.existsSync(settingsPath)) {
+          const content = fs.readFileSync(settingsPath, "utf-8")
+          return JSON.parse(content)
+        }
+        return null
+      } catch (error) {
+        logApp("[ClaudeConfig] Error reading project settings:", error)
+        return null
+      }
+    }),
+
+  // Write project settings (.claude/settings.json)
+  writeProjectSettings: t.procedure
+    .input<{ projectPath: string; settings: Record<string, unknown> }>()
+    .action(async ({ input }) => {
+      const claudeDir = path.join(input.projectPath, ".claude")
+      const settingsPath = path.join(claudeDir, "settings.json")
+      try {
+        // Ensure .claude directory exists
+        if (!fs.existsSync(claudeDir)) {
+          fs.mkdirSync(claudeDir, { recursive: true })
+        }
+        fs.writeFileSync(settingsPath, JSON.stringify(input.settings, null, 2), "utf-8")
+        return { success: true }
+      } catch (error) {
+        logApp("[ClaudeConfig] Error writing project settings:", error)
+        return { success: false, error: error instanceof Error ? error.message : String(error) }
+      }
+    }),
+
+  // Read CLAUDE.md file
+  readClaudeMd: t.procedure
+    .input<{ projectPath: string }>()
+    .action(async ({ input }) => {
+      const claudeMdPath = path.join(input.projectPath, "CLAUDE.md")
+      try {
+        if (fs.existsSync(claudeMdPath)) {
+          return fs.readFileSync(claudeMdPath, "utf-8")
+        }
+        return null
+      } catch (error) {
+        logApp("[ClaudeConfig] Error reading CLAUDE.md:", error)
+        return null
+      }
+    }),
+
+  // Write CLAUDE.md file
+  writeClaudeMd: t.procedure
+    .input<{ projectPath: string; content: string }>()
+    .action(async ({ input }) => {
+      const claudeMdPath = path.join(input.projectPath, "CLAUDE.md")
+      try {
+        fs.writeFileSync(claudeMdPath, input.content, "utf-8")
+        return { success: true }
+      } catch (error) {
+        logApp("[ClaudeConfig] Error writing CLAUDE.md:", error)
+        return { success: false, error: error instanceof Error ? error.message : String(error) }
+      }
+    }),
+
+  // Read all Claude Code config for a project (combined)
+  readClaudeCodeConfig: t.procedure
+    .input<{ projectPath: string }>()
+    .action(async ({ input }) => {
+      const homedir = app.getPath("home")
+      const result: {
+        globalMcpServers?: Record<string, unknown>
+        projectMcpServers?: Record<string, unknown>
+        projectSettings?: Record<string, unknown>
+        claudeMd?: string
+      } = {}
+
+      // Read global config
+      try {
+        const globalConfigPath = path.join(homedir, ".claude.json")
+        if (fs.existsSync(globalConfigPath)) {
+          const globalConfig = JSON.parse(fs.readFileSync(globalConfigPath, "utf-8"))
+          result.globalMcpServers = globalConfig.mcpServers || {}
+        }
+      } catch (error) {
+        logApp("[ClaudeConfig] Error reading global config:", error)
+      }
+
+      // Read project MCP config
+      try {
+        const mcpConfigPath = path.join(input.projectPath, ".mcp.json")
+        if (fs.existsSync(mcpConfigPath)) {
+          const mcpConfig = JSON.parse(fs.readFileSync(mcpConfigPath, "utf-8"))
+          result.projectMcpServers = mcpConfig.mcpServers || {}
+        }
+      } catch (error) {
+        logApp("[ClaudeConfig] Error reading project MCP config:", error)
+      }
+
+      // Read project settings
+      try {
+        const settingsPath = path.join(input.projectPath, ".claude", "settings.json")
+        if (fs.existsSync(settingsPath)) {
+          result.projectSettings = JSON.parse(fs.readFileSync(settingsPath, "utf-8"))
+        }
+      } catch (error) {
+        logApp("[ClaudeConfig] Error reading project settings:", error)
+      }
+
+      // Read CLAUDE.md
+      try {
+        const claudeMdPath = path.join(input.projectPath, "CLAUDE.md")
+        if (fs.existsSync(claudeMdPath)) {
+          result.claudeMd = fs.readFileSync(claudeMdPath, "utf-8")
+        }
+      } catch (error) {
+        logApp("[ClaudeConfig] Error reading CLAUDE.md:", error)
+      }
+
+      return result
+    }),
 }
 export type Router = typeof router

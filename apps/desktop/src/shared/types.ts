@@ -387,6 +387,102 @@ export interface ProjectParentFolder {
   name: string  // Display name like "Work Projects" or "Personal"
 }
 
+// ============================================================================
+// Claude Code Configuration Types
+// These types represent the configuration files used by Claude Code CLI
+// ============================================================================
+
+/**
+ * MCP Server configuration for Claude Code
+ * Used in ~/.claude.json (global) and .mcp.json (project-level)
+ */
+export interface ClaudeCodeMCPServer {
+  command?: string           // For stdio transport
+  args?: string[]            // Command arguments
+  env?: Record<string, string>  // Environment variables
+  url?: string               // For HTTP/SSE transport
+  type?: "stdio" | "http" | "sse"  // Transport type
+}
+
+/**
+ * MCP servers configuration object
+ */
+export interface ClaudeCodeMCPServers {
+  mcpServers: Record<string, ClaudeCodeMCPServer>
+}
+
+/**
+ * Hook command configuration
+ */
+export interface ClaudeCodeHookCommand {
+  type: "command"
+  command: string
+}
+
+/**
+ * Hook matcher configuration
+ */
+export interface ClaudeCodeHookMatcher {
+  matcher: string  // Tool pattern like "Write|Edit" or "*"
+  hooks: ClaudeCodeHookCommand[]
+}
+
+/**
+ * Hooks configuration for Claude Code
+ * Event types: PreToolUse, PostToolUse, SessionStart, SessionEnd, etc.
+ */
+export interface ClaudeCodeHooks {
+  PreToolUse?: ClaudeCodeHookMatcher[]
+  PostToolUse?: ClaudeCodeHookMatcher[]
+  SessionStart?: ClaudeCodeHookMatcher[]
+  SessionEnd?: ClaudeCodeHookMatcher[]
+  Notification?: ClaudeCodeHookMatcher[]
+  Stop?: ClaudeCodeHookMatcher[]
+}
+
+/**
+ * Permission settings for Claude Code
+ */
+export interface ClaudeCodePermissions {
+  allow?: string[]   // Allowed tools/patterns
+  deny?: string[]    // Denied tools/patterns
+  askFirst?: string[] // Tools that require confirmation
+}
+
+/**
+ * Project-level settings (.claude/settings.json)
+ */
+export interface ClaudeCodeProjectSettings {
+  hooks?: ClaudeCodeHooks
+  permissions?: ClaudeCodePermissions
+  agents?: Record<string, unknown>  // Custom agent configurations
+  skills?: Record<string, unknown>  // Custom skill configurations
+}
+
+/**
+ * Global Claude configuration (~/.claude.json)
+ * Contains user preferences, OAuth session, and global MCP servers
+ */
+export interface ClaudeCodeGlobalConfig {
+  mcpServers?: Record<string, ClaudeCodeMCPServer>
+  // Other global settings (read-only, we don't modify these)
+  [key: string]: unknown
+}
+
+/**
+ * Combined Claude Code configuration for a project
+ */
+export interface ClaudeCodeConfig {
+  // Global config from ~/.claude.json (read-only for MCP servers)
+  globalMcpServers?: Record<string, ClaudeCodeMCPServer>
+  // Project-level MCP servers from .mcp.json
+  projectMcpServers?: Record<string, ClaudeCodeMCPServer>
+  // Project settings from .claude/settings.json
+  projectSettings?: ClaudeCodeProjectSettings
+  // Project instructions from CLAUDE.md
+  claudeMd?: string
+}
+
 export interface ACPAgentConfig {
   // Unique identifier for the agent
   name: string

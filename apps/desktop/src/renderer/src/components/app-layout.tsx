@@ -49,6 +49,11 @@ export const Component = () => {
       icon: "i-mingcute-folder-line",
     },
     {
+      text: "Claude Config",
+      href: "/settings/claude-config",
+      icon: "i-mingcute-code-line",
+    },
+    {
       text: "Agents",
       href: "/settings/acp-agents",
       icon: "i-mingcute-robot-line",
