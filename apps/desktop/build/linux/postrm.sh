@@ -1,17 +1,17 @@
 #!/bin/bash
 set -e
 
-# Post-removal script for SpeakMCP Debian package
+# Post-removal script for VibeCodeManager Debian package
 # This script cleans up desktop integration and symlinks
 
-echo "Cleaning up SpeakMCP..."
+echo "Cleaning up VibeCodeManager..."
 
-BIN_NAME="speakmcp"
+BIN_NAME="vibecodemanager"
 ICON_DIR="/usr/share/icons/hicolor"
 
 # 1. Remove update-alternatives symlink
 if command -v update-alternatives >/dev/null 2>&1; then
-    update-alternatives --remove $BIN_NAME /opt/SpeakMCP/$BIN_NAME 2>/dev/null || true
+    update-alternatives --remove $BIN_NAME /opt/VibeCodeManager/$BIN_NAME 2>/dev/null || true
     echo "✓ Removed PATH symlink"
 fi
 
@@ -32,7 +32,7 @@ if command -v update-mime-database >/dev/null 2>&1; then
     update-mime-database /usr/share/mime 2>/dev/null || true
 fi
 
-echo "SpeakMCP has been removed."
+echo "VibeCodeManager has been removed."
 
 exit 0
 

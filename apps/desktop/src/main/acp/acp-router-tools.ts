@@ -916,7 +916,7 @@ export async function handleStopAgent(args: { agentName: string }): Promise<obje
  * Execute an ACP router tool by name.
  * This is the main entry point for invoking ACP router tools.
  *
- * @param toolName - The full tool name (e.g., 'speakmcp-builtin:list_available_agents')
+ * @param toolName - The full tool name (e.g., 'vibecode-builtin:list_available_agents')
  * @param args - Arguments to pass to the tool handler
  * @param parentSessionId - Optional parent session ID for tracking delegations
  * @returns Object with content string and error flag
@@ -934,11 +934,11 @@ export async function executeACPRouterTool(
     let result: object;
 
     switch (resolvedToolName) {
-      case 'speakmcp-builtin:list_available_agents':
+      case 'vibecode-builtin:list_available_agents':
         result = await handleListAvailableAgents(args as { capability?: string; skillName?: string });
         break;
 
-      case 'speakmcp-builtin:delegate_to_agent':
+      case 'vibecode-builtin:delegate_to_agent':
         // Handle both legacy 'runId' and A2A 'taskId' terminology
         result = await handleDelegateToAgent(
           args as {
@@ -952,7 +952,7 @@ export async function executeACPRouterTool(
         );
         break;
 
-      case 'speakmcp-builtin:check_agent_status':
+      case 'vibecode-builtin:check_agent_status':
         // Handle both legacy 'runId' and A2A 'taskId' parameter names
         const statusArgs = args as { runId?: string; taskId?: string; historyLength?: number };
         const statusRunId = statusArgs.runId || statusArgs.taskId;
@@ -969,15 +969,15 @@ export async function executeACPRouterTool(
         }
         break;
 
-      case 'speakmcp-builtin:spawn_agent':
+      case 'vibecode-builtin:spawn_agent':
         result = await handleSpawnAgent(args as { agentName: string });
         break;
 
-      case 'speakmcp-builtin:stop_agent':
+      case 'vibecode-builtin:stop_agent':
         result = await handleStopAgent(args as { agentName: string });
         break;
 
-      case 'speakmcp-builtin:cancel_agent_run':
+      case 'vibecode-builtin:cancel_agent_run':
         // Handle both legacy 'runId' and A2A 'taskId' parameter names
         const cancelArgs = args as { runId?: string; taskId?: string };
         const cancelRunId = cancelArgs.runId || cancelArgs.taskId;

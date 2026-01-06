@@ -2,17 +2,17 @@
 
 mkdir -p resources/bin
 
-cd speakmcp-rs
+cd vibecode-rs
 
 cargo build -r
 
 # Handle different platforms
 if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" || "$OSTYPE" == "cygwin" ]]; then
     # Windows
-    cp target/release/speakmcp-rs.exe ../resources/bin/speakmcp-rs.exe
+    cp target/release/vibecode-rs.exe ../resources/bin/vibecode-rs.exe
 else
     # Unix-like systems (macOS, Linux)
-    cp target/release/speakmcp-rs ../resources/bin/speakmcp-rs
+    cp target/release/vibecode-rs ../resources/bin/vibecode-rs
 fi
 
 cd ..

@@ -1,4 +1,4 @@
-import type { ToolCall, ToolResult } from '@speakmcp/shared';
+import type { ToolCall, ToolResult } from '@vibecodemanager/shared';
 
 export interface ChatMessage {
   id: string;
@@ -10,7 +10,7 @@ export interface ChatMessage {
 }
 
 // Re-export shared types for convenience
-export type { ToolCall, ToolResult } from '@speakmcp/shared';
+export type { ToolCall, ToolResult } from '@vibecodemanager/shared';
 
 export interface Session {
   id: string;

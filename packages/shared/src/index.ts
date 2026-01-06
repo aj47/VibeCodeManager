@@ -1,7 +1,7 @@
 /**
- * @speakmcp/shared
+ * @vibecodemanager/shared
  *
- * Shared design tokens, types, and utilities for SpeakMCP apps
+ * Shared design tokens, types, and utilities for VibeCodeManager apps
  */
 
 export * from './colors';

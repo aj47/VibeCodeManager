@@ -3,7 +3,7 @@ import type {
   ToolResult,
   ConversationHistoryMessage,
   ChatApiResponse
-} from '@speakmcp/shared';
+} from '@vibecodemanager/shared';
 import { Platform } from 'react-native';
 import EventSource from 'react-native-sse';
 import {
@@ -36,7 +36,7 @@ export type ChatMessage = {
 
 export type ChatResponse = ChatApiResponse;
 
-export type { ToolCall, ToolResult, ConversationHistoryMessage } from '@speakmcp/shared';
+export type { ToolCall, ToolResult, ConversationHistoryMessage } from '@vibecodemanager/shared';
 export type { StreamingCheckpoint } from './connectionRecovery';
 
 export interface AgentProgressUpdate {

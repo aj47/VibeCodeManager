@@ -47,7 +47,7 @@ export class OAuthDeepLinkHandler {
     if (process.platform === 'win32' || process.platform === 'linux') {
       const args = process.argv
       for (const arg of args) {
-        if (arg.startsWith('speakmcp://')) {
+        if (arg.startsWith('vibecode://')) {
           this.handleDeepLink(null as any, arg)
           break
         }
@@ -55,7 +55,7 @@ export class OAuthDeepLinkHandler {
 
       this.secondInstanceHandler = (_event: Electron.Event, commandLine: string[]) => {
         for (const arg of commandLine) {
-          if (arg.startsWith('speakmcp://')) {
+          if (arg.startsWith('vibecode://')) {
             this.handleDeepLink(null as any, arg)
             break
           }

@@ -1,8 +1,8 @@
 /**
  * Built-in MCP Tools for SpeakMCP Settings Management
  *
- * These tools are registered as a virtual "speakmcp-settings" server and provide
- * functionality for managing SpeakMCP settings directly from the LLM:
+ * These tools are registered as a virtual "vibecode-settings" server and provide
+ * functionality for managing VibeCode settings directly from the LLM:
  * - List MCP servers and their status
  * - Enable/disable MCP servers
  * - List and switch profiles
@@ -652,7 +652,7 @@ const toolHandlers: Record<string, ToolHandler> = {
 
 /**
  * Execute a built-in tool by name
- * @param toolName The full tool name (e.g., "speakmcp-settings:list_mcp_servers")
+ * @param toolName The full tool name (e.g., "vibecode-settings:list_mcp_servers")
  * @param args The tool arguments
  * @param sessionId Optional session ID for ACP router tools
  * @returns The tool result
@@ -710,7 +710,7 @@ export async function executeBuiltinTool(
 
 /**
  * Check if a tool name is a built-in tool
- * This includes both speakmcp-settings tools and ACP router tools (speakmcp-builtin)
+ * This includes both vibecode-settings tools and ACP router tools (vibecode-builtin)
  */
 export function isBuiltinTool(toolName: string): boolean {
   return toolName.startsWith(`${BUILTIN_SERVER_NAME}:`) || isACPRouterTool(toolName)

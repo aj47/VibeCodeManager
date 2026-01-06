@@ -207,7 +207,7 @@ const initStatus = await window.electron.ipcRenderer.invoke('getMcpInitializatio
 - [ ] `getMcpServerStatus` lists all configured servers
 - [ ] Server status shows connected/disconnected
 - [ ] Server status shows tool count
-- [ ] Built-in server (`speakmcp-settings`) always present
+- [ ] Built-in server (`vibecode-settings`) always present
 - [ ] `getMcpDetailedToolList` includes all tools with metadata
 - [ ] `getMcpInitializationStatus` tracks init progress
 - [ ] `getMcpDisabledTools` returns disabled tool list

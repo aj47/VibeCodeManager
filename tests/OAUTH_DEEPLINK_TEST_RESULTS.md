@@ -7,8 +7,8 @@
 The OAuth deep link callbacks for CloudFlare Remote MCP servers were failing due to how Node.js `URL` class parses custom protocol URLs.
 
 **Root Cause:**
-When parsing a URL like `speakmcp://oauth/callback?code=xxx&state=yyy`, the Node.js `URL` class treats:
-- `speakmcp:` as the protocol
+When parsing a URL like `vibecode://oauth/callback?code=xxx&state=yyy`, the Node.js `URL` class treats:
+- `vibecode:` as the protocol
 - `oauth` as the **host/authority** (not part of the pathname!)
 - `/callback` as the pathname
 
@@ -42,9 +42,9 @@ Created `tests/test-oauth-deeplink.js` to verify URL parsing behavior:
 
 | URL Format | Protocol | Host | Pathname | Full Path | Matches? |
 |------------|----------|------|----------|-----------|----------|
-| `speakmcp://oauth/callback?code=test123` | `speakmcp:` | `oauth` | `/callback` | `/oauth/callback` | ✅ YES |
-| `speakmcp:/oauth/callback?code=test456` | `speakmcp:` | (empty) | `/oauth/callback` | `/oauth/callback` | ✅ YES |
-| `speakmcp:///oauth/callback?code=test789` | `speakmcp:` | (empty) | `/oauth/callback` | `/oauth/callback` | ✅ YES |
+| `vibecode://oauth/callback?code=test123` | `vibecode:` | `oauth` | `/callback` | `/oauth/callback` | ✅ YES |
+| `vibecode:/oauth/callback?code=test456` | `vibecode:` | (empty) | `/oauth/callback` | `/oauth/callback` | ✅ YES |
+| `vibecode:///oauth/callback?code=test789` | `vibecode:` | (empty) | `/oauth/callback` | `/oauth/callback` | ✅ YES |
 
 All test cases now correctly match the expected OAuth callback path.
 
@@ -73,7 +73,7 @@ Tests  24 passed (24)
 
 ### PR Status
 
-- **PR #290**: https://github.com/aj47/SpeakMCP/pull/290
+- **PR #290**: https://github.com/aj47/VibeCodeManager/pull/290
 - **Status**: Open
 - **Branch**: `fix/249-cloudflare-deeplink-callbacks`
 - **Base**: `main`
@@ -92,7 +92,7 @@ Tests  24 passed (24)
 
 **Why This Matters:**
 - CloudFlare Remote MCP servers use OAuth 2.1 with PKCE for authentication
-- The OAuth flow redirects back to `speakmcp://oauth/callback` after authorization
+- The OAuth flow redirects back to `vibecode://oauth/callback` after authorization
 - Without this fix, the callback would not be recognized, breaking the OAuth flow
 - This affects any remote MCP server that requires OAuth authentication
 

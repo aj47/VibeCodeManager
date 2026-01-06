@@ -6,18 +6,18 @@ Voice-driven orchestration of parallel Claude Code agents. Users speak commands,
 ## Current State (v0.1.0)
 
 ### What's Done
-- [x] Local STT (FluidAudio/Parakeet) - Swift CLI wrapper (`speakmcp-stt` binary)
+- [x] Local STT (FluidAudio/Parakeet) - Swift CLI wrapper (`vibecode-stt` binary)
 - [x] Local TTS (Kitten TTS) - Python wrapper with 8 voices
 - [x] Local provider UI in settings
 - [x] Rebranded to VibeCodeManager with separate config storage
-- [x] ACP infrastructure exists (from SpeakMCP)
-- [x] Session grid UI exists (from SpeakMCP)
+- [x] ACP infrastructure exists (from VibeCodeManager)
+- [x] Session grid UI exists (from VibeCodeManager)
 - [x] **Voice-to-Claude-Code pipeline** - `voice-agent-pipeline.ts` with `processVoiceCommand()` and `processTextCommand()`
 - [x] **Text input via panel** - Routes through Claude Code via ACP when `voiceToClaudeCodeEnabled: true`
 - [x] **Conversation history in UI** - Fixed progress updates to include `conversationHistory` for proper UI display
 
 ### What's NOT Done
-- [ ] Strip unnecessary SpeakMCP features
+- [ ] Strip unnecessary VibeCodeManager features
 - [ ] Project/workspace management for parallel agents
 - [ ] Full end-to-end voice loop testing (text input tested, voice recording needs testing)
 
@@ -38,7 +38,7 @@ These features are not relevant to VibeCodeManager's mission:
 | **Built-in LLM chat** | `llm.ts`, `llm-fetch.ts` | Claude Code is the LLM |
 | **Remote server** | `remote-server.ts`, `cloudflare-tunnel.ts` | Not needed for local-first |
 | **A2A protocol** | `src/main/a2a/` folder | Focus on ACP only |
-| **Rust binary** | `speakmcp-rs/` folder | Was for fast transcription, now using FluidAudio |
+| **Rust binary** | `vibecode-rs/` folder | Was for fast transcription, now using FluidAudio |
 | **Mobile app** | `apps/mobile/` folder | Desktop-only for now |
 
 ### Simplify These
@@ -203,11 +203,11 @@ apps/desktop/
 │   └── shared/
 │       ├── types.ts
 │       └── index.ts
-├── speakmcp-swift/           # Rename to vibecode-stt/
-├── speakmcp-tts/             # Rename to vibecode-tts/
+├── vibecode-stt/             # Local STT binary
+├── vibecode-tts/             # Local TTS wrapper
 └── resources/
     └── bin/
-        └── speakmcp-stt      # Rename to vibecode-stt
+        └── vibecode-stt      # Local STT binary
 ```
 
 ---
@@ -240,13 +240,13 @@ cd apps/desktop
 ./scripts/build-swift.sh
 
 # Verify it's built
-ls -la resources/bin/speakmcp-stt
+ls -la resources/bin/vibecode-stt
 ```
 
 ### Setting Up Local TTS (Required)
 ```bash
 # Set up Python venv (use Python 3.12, not 3.14 due to dependency issues)
-cd apps/desktop/speakmcp-tts
+cd apps/desktop/vibecode-tts
 python3.12 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -275,7 +275,7 @@ python tts.py output.wav --text "Hello world" --voice expr-voice-2-f
 
 ## Recent Fixes (Jan 5, 2026)
 
-1. **Built STT binary** - Ran `./scripts/build-swift.sh` to build `speakmcp-stt`
-2. **Set up TTS environment** - Created Python 3.12 venv at `speakmcp-tts/.venv`
+1. **Built STT binary** - Ran `./scripts/build-swift.sh` to build `vibecode-stt`
+2. **Set up TTS environment** - Created Python 3.12 venv at `vibecode-tts/.venv`
 3. **Fixed text input routing** - Added `processTextCommand()` in `voice-agent-pipeline.ts` to route text input through Claude Code ACP instead of OpenAI API
 4. **Fixed "Initializing..." UI bug** - Added `conversationHistory` tracking to progress updates so UI displays actual messages

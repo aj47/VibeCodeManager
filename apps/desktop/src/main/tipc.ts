@@ -1019,7 +1019,7 @@ export const router = {
       if (!pipelineStatus.available) {
         throw new Error(
           !pipelineStatus.hasSTT 
-            ? "Local STT not available. Please build the speakmcp-stt binary."
+            ? "Local STT not available. Please build the vibecode-stt binary."
             : "No Claude Code agent configured. Please add an ACP agent in settings."
         )
       }

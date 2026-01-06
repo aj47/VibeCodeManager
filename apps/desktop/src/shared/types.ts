@@ -1,7 +1,7 @@
 import type { CHAT_PROVIDER_ID, STT_PROVIDER_ID, TTS_PROVIDER_ID, OPENAI_COMPATIBLE_PRESET_ID } from "."
-import type { ToolCall, ToolResult } from '@speakmcp/shared'
+import type { ToolCall, ToolResult } from '@vibecodemanager/shared'
 
-export type { ToolCall, ToolResult, BaseChatMessage, ConversationHistoryMessage, ChatApiResponse } from '@speakmcp/shared'
+export type { ToolCall, ToolResult, BaseChatMessage, ConversationHistoryMessage, ChatApiResponse } from '@vibecodemanager/shared'
 
 export type RecordingHistoryItem = {
   id: string

@@ -19,7 +19,7 @@ module.exports = {
     "!*.{js,cjs,mjs,ts}",
     "!components.json",
     "!.prettierrc",
-    "!speakmcp-rs/*",
+    "!vibecode-rs/*",
   ],
   asar: false,
   win: {
@@ -42,8 +42,8 @@ module.exports = {
     signDlls: false,
     extraResources: [
       {
-        from: "resources/bin/speakmcp-rs.exe",
-        to: "bin/speakmcp-rs.exe",
+        from: "resources/bin/vibecode-rs.exe",
+        to: "bin/vibecode-rs.exe",
         filter: ["**/*"]
       },
       {
@@ -63,7 +63,7 @@ module.exports = {
   },
   mac: {
     binaries: [
-      "resources/bin/speakmcp-rs",
+      "resources/bin/vibecode-rs",
     ],
     artifactName: "${productName}-${version}-${arch}.${ext}",
     entitlementsInherit: "build/entitlements.mac.plist",
@@ -211,8 +211,8 @@ module.exports = {
     executableName: "vibecodemanager",
     extraResources: [
       {
-        from: "resources/bin/speakmcp-rs",
-        to: "bin/speakmcp-rs",
+        from: "resources/bin/vibecode-rs",
+        to: "bin/vibecode-rs",
         filter: ["**/*"]
       }
     ]

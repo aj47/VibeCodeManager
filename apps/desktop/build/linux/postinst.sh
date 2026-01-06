@@ -1,15 +1,15 @@
 #!/bin/bash
 set -e
 
-# Post-installation script for SpeakMCP Debian package
+# Post-installation script for VibeCodeManager Debian package
 # This script sets up desktop integration, permissions, and PATH symlinks
 
-echo "Setting up SpeakMCP..."
+echo "Setting up VibeCodeManager..."
 
 # Define installation paths
-INSTALL_DIR="/opt/SpeakMCP"
-BIN_NAME="speakmcp"
-DESKTOP_FILE="/usr/share/applications/speakmcp.desktop"
+INSTALL_DIR="/opt/VibeCodeManager"
+BIN_NAME="vibecodemanager"
+DESKTOP_FILE="/usr/share/applications/vibecodemanager.desktop"
 ICON_DIR="/usr/share/icons/hicolor"
 
 # 1. Make binary executable
@@ -67,11 +67,11 @@ if command -v update-mime-database >/dev/null 2>&1; then
     update-mime-database /usr/share/mime 2>/dev/null || true
 fi
 
-echo "SpeakMCP installation complete!"
+echo "VibeCodeManager installation complete!"
 echo ""
 echo "You can now:"
-echo "  • Launch SpeakMCP from your application menu"
-echo "  • Run 'speakmcp' from the terminal"
+echo "  • Launch VibeCodeManager from your application menu"
+echo "  • Run 'vibecodemanager' from the terminal"
 echo ""
 
 exit 0

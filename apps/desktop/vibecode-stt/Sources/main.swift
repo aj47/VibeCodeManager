@@ -27,13 +27,13 @@ func exitWithError(_ message: String) {
 
 /// Main entry point
 @main
-struct SpeakMCPSTT {
+struct VibecodeSTT {
     static func main() async {
         let args = CommandLine.arguments
 
         // Parse arguments
         guard args.count >= 2 else {
-            exitWithError("Usage: speakmcp-stt <audio-file> [--model v2|v3]")
+            exitWithError("Usage: vibecode-stt <audio-file> [--model v2|v3]")
             return
         }
 

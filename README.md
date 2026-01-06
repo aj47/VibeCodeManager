@@ -36,7 +36,7 @@ cd apps/desktop
 
 ### 3. Set up Local TTS
 ```bash
-cd apps/desktop/speakmcp-tts
+cd apps/desktop/vibecode-tts
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 ```

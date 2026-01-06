@@ -23,7 +23,7 @@ export interface BuiltinToolDefinition {
 }
 
 // The virtual server name for built-in tools
-export const BUILTIN_SERVER_NAME = "speakmcp-settings"
+export const BUILTIN_SERVER_NAME = "vibecode-settings"
 
 // Tool definitions
 export const builtinToolDefinitions: BuiltinToolDefinition[] = [

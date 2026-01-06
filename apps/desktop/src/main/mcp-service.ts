@@ -580,7 +580,7 @@ export class MCPService {
       try {
         client = new Client(
           {
-            name: "speakmcp-mcp-client",
+            name: "vibecode-mcp-client",
             version: "1.0.0",
           },
           {
@@ -628,7 +628,7 @@ export class MCPService {
             // Create new client
             client = new Client(
               {
-                name: "speakmcp-mcp-client",
+                name: "vibecode-mcp-client",
                 version: "1.0.0",
               },
               {
@@ -1812,7 +1812,7 @@ export class MCPService {
 
       client = new Client(
         {
-          name: "speakmcp-mcp-test-client",
+          name: "vibecode-mcp-test-client",
           version: "1.0.0",
         },
         {

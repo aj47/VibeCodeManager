@@ -164,7 +164,7 @@ export function Component() {
 
           {!hasLocalTTS && (
             <div className="px-3 py-2 text-xs text-muted-foreground border-t bg-amber-500/5">
-              Set up TTS: <code className="bg-muted px-1 rounded">cd speakmcp-tts && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt</code>
+              Set up TTS: <code className="bg-muted px-1 rounded">cd vibecode-tts && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt</code>
             </div>
           )}
 

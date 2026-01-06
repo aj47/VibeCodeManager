@@ -23,7 +23,7 @@
  */
 export const acpRouterToolDefinitions = [
   {
-    name: 'speakmcp-builtin:list_available_agents',
+    name: 'vibecode-builtin:list_available_agents',
     description:
       'List all available specialized ACP agents that can be delegated to. Returns agent names, descriptions, and capabilities.',
     inputSchema: {
@@ -38,7 +38,7 @@ export const acpRouterToolDefinitions = [
     },
   },
   {
-    name: 'speakmcp-builtin:delegate_to_agent',
+    name: 'vibecode-builtin:delegate_to_agent',
     description:
       'Delegate a sub-task to a specialized ACP agent. The agent will work autonomously and return results. Use this when a task is better suited for a specialist.',
     inputSchema: {
@@ -66,7 +66,7 @@ export const acpRouterToolDefinitions = [
     },
   },
   {
-    name: 'speakmcp-builtin:check_agent_status',
+    name: 'vibecode-builtin:check_agent_status',
     description: 'Check the status of a running delegated agent task',
     inputSchema: {
       type: 'object' as const,
@@ -86,7 +86,7 @@ export const acpRouterToolDefinitions = [
     },
   },
   {
-    name: 'speakmcp-builtin:spawn_agent',
+    name: 'vibecode-builtin:spawn_agent',
     description:
       'Spawn a new instance of an ACP agent. Use when you need to ensure an agent is ready before delegating.',
     inputSchema: {
@@ -101,7 +101,7 @@ export const acpRouterToolDefinitions = [
     },
   },
   {
-    name: 'speakmcp-builtin:stop_agent',
+    name: 'vibecode-builtin:stop_agent',
     description: 'Stop a running ACP agent process to free resources',
     inputSchema: {
       type: 'object' as const,
@@ -115,7 +115,7 @@ export const acpRouterToolDefinitions = [
     },
   },
   {
-    name: 'speakmcp-builtin:cancel_agent_run',
+    name: 'vibecode-builtin:cancel_agent_run',
     description: 'Cancel a running delegated agent task',
     inputSchema: {
       type: 'object' as const,
@@ -136,7 +136,7 @@ export const acpRouterToolDefinitions = [
   },
   // A2A-aligned tool names (aliases for the above)
   {
-    name: 'speakmcp-builtin:send_to_agent',
+    name: 'vibecode-builtin:send_to_agent',
     description:
       'Send a task to an A2A agent. Alias for delegate_to_agent. The agent will process the task and return results.',
     inputSchema: {
@@ -168,7 +168,7 @@ export const acpRouterToolDefinitions = [
     },
   },
   {
-    name: 'speakmcp-builtin:get_task_status',
+    name: 'vibecode-builtin:get_task_status',
     description: 'Get the status of a task. Alias for check_agent_status.',
     inputSchema: {
       type: 'object' as const,
@@ -186,7 +186,7 @@ export const acpRouterToolDefinitions = [
     },
   },
   {
-    name: 'speakmcp-builtin:cancel_task',
+    name: 'vibecode-builtin:cancel_task',
     description: 'Cancel a running task. Alias for cancel_agent_run.',
     inputSchema: {
       type: 'object' as const,
@@ -206,9 +206,9 @@ export const acpRouterToolDefinitions = [
  * Used for backward compatibility in the execution handler.
  */
 export const toolNameAliases: Record<string, string> = {
-  'speakmcp-builtin:send_to_agent': 'speakmcp-builtin:delegate_to_agent',
-  'speakmcp-builtin:get_task_status': 'speakmcp-builtin:check_agent_status',
-  'speakmcp-builtin:cancel_task': 'speakmcp-builtin:cancel_agent_run',
+  'vibecode-builtin:send_to_agent': 'vibecode-builtin:delegate_to_agent',
+  'vibecode-builtin:get_task_status': 'vibecode-builtin:check_agent_status',
+  'vibecode-builtin:cancel_task': 'vibecode-builtin:cancel_agent_run',
 };
 
 /**

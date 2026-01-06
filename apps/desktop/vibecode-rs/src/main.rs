@@ -117,7 +117,7 @@ fn main() {
             }
         }
     } else {
-        eprintln!("Usage: {} [listen|write <text>]", args.get(0).unwrap_or(&"speakmcp-rs".to_string()));
+        eprintln!("Usage: {} [listen|write <text>]", args.get(0).unwrap_or(&"vibecode-rs".to_string()));
         eprintln!("Commands:");
         eprintln!("  listen       - Listen for keyboard events");
         eprintln!("  write <text> - Write text using accessibility API");

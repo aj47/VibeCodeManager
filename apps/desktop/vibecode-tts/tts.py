@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-SpeakMCP TTS - Local text-to-speech using Kitten TTS
+VibeCodeManager TTS - Local text-to-speech using Kitten TTS
 Usage: python tts.py <output.wav> [--voice <voice_id>]
        Text is read from stdin
 """

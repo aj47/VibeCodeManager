@@ -1,4 +1,4 @@
-# SpeakMCP Docker Compose Configuration
+# VibeCodeManager Docker Compose Configuration
 #
 # Usage:
 #   Development shell:     docker compose run --rm shell
@@ -6,7 +6,7 @@
 #
 # The build-linux service outputs packages directly to ./dist on the host.
 #
-# Note: SpeakMCP is an Electron desktop application. Docker is primarily useful for:
+# Note: VibeCodeManager is an Electron desktop application. Docker is primarily useful for:
 #   - Building Linux packages in a consistent environment
 #   - CI/CD pipelines
 #   - Development environment setup
@@ -26,7 +26,7 @@ services:
       - mobile_node_modules:/app/apps/mobile/node_modules
       - shared_node_modules:/app/packages/shared/node_modules
       - cargo_cache:/root/.cargo
-      - rust_target:/app/apps/desktop/speakmcp-rs/target
+      - rust_target:/app/apps/desktop/vibecode-rs/target
     environment:
       - NODE_ENV=development
     stdin_open: true

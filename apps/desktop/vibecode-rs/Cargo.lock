@@ -430,7 +430,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "speakmcp-rs"
+name = "vibecode-rs"
 version = "1.1.0"
 dependencies = [
  "enigo",

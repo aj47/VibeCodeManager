@@ -1054,7 +1054,7 @@ class ACPService extends EventEmitter {
           // terminal: true,
         },
         clientInfo: {
-          name: "speakmcp",
+          name: "vibecodemanager",
           title: "SpeakMCP",
           version: "1.0.0",
         },

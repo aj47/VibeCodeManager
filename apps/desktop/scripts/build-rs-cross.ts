@@ -16,7 +16,7 @@ import { fileURLToPath } from "url"
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 const desktopDir = join(__dirname, "..")
-const rustDir = join(desktopDir, "speakmcp-rs")
+const rustDir = join(desktopDir, "vibecode-rs")
 const resourcesBinDir = join(desktopDir, "resources", "bin")
 
 const isWindows = process.platform === "win32"
@@ -29,7 +29,7 @@ const requiredDirs = [
   resourcesBinDir,
   join(desktopDir, "dist"),
   join(desktopDir, "dist-installer"),
-  join(desktopDir, "dist-installer@speakmcp"),
+  join(desktopDir, "dist-installer@vibecodemanager"),
 ]
 
 for (const dir of requiredDirs) {
@@ -53,12 +53,12 @@ try {
 
 // Copy the binary to resources/bin
 const srcBinary = isWindows
-  ? join(rustDir, "target", "release", "speakmcp-rs.exe")
-  : join(rustDir, "target", "release", "speakmcp-rs")
+  ? join(rustDir, "target", "release", "vibecode-rs.exe")
+  : join(rustDir, "target", "release", "vibecode-rs")
 
 const destBinary = isWindows
-  ? join(resourcesBinDir, "speakmcp-rs.exe")
-  : join(resourcesBinDir, "speakmcp-rs")
+  ? join(resourcesBinDir, "vibecode-rs.exe")
+  : join(resourcesBinDir, "vibecode-rs")
 
 if (!existsSync(srcBinary)) {
   console.error(`❌ Built binary not found at: ${srcBinary}`)

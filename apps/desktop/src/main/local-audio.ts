@@ -26,10 +26,10 @@ function getBinaryPath(name: string): string {
 function getTTSPythonPath(): string {
   const isDev = !app.isPackaged
   if (isDev) {
-    return path.join(__dirname, "../../speakmcp-tts/.venv/bin/python")
+    return path.join(__dirname, "../../vibecode-tts/.venv/bin/python")
   }
   // In production, we'll bundle the venv or use system python
-  return path.join(process.resourcesPath, "speakmcp-tts/.venv/bin/python")
+  return path.join(process.resourcesPath, "vibecode-tts/.venv/bin/python")
 }
 
 /**
@@ -38,9 +38,9 @@ function getTTSPythonPath(): string {
 function getTTSScriptPath(): string {
   const isDev = !app.isPackaged
   if (isDev) {
-    return path.join(__dirname, "../../speakmcp-tts/tts.py")
+    return path.join(__dirname, "../../vibecode-tts/tts.py")
   }
-  return path.join(process.resourcesPath, "speakmcp-tts/tts.py")
+  return path.join(process.resourcesPath, "vibecode-tts/tts.py")
 }
 
 interface LocalSTTResult {
@@ -63,8 +63,8 @@ interface LocalTTSResult {
  */
 export async function transcribeLocal(audioBuffer: ArrayBuffer): Promise<LocalSTTResult> {
   const tempDir = os.tmpdir()
-  const tempWav = path.join(tempDir, `speakmcp-stt-${Date.now()}.wav`)
-  const tempWebm = path.join(tempDir, `speakmcp-stt-${Date.now()}.webm`)
+  const tempWav = path.join(tempDir, `vibecode-stt-${Date.now()}.wav`)
+  const tempWebm = path.join(tempDir, `vibecode-stt-${Date.now()}.webm`)
 
   try {
     // Write webm to temp file
@@ -88,7 +88,7 @@ export async function transcribeLocal(audioBuffer: ArrayBuffer): Promise<LocalST
     })
 
     // Run local STT
-    const sttBinary = getBinaryPath("speakmcp-stt")
+    const sttBinary = getBinaryPath("vibecode-stt")
 
     return new Promise((resolve) => {
       const stt = spawn(sttBinary, [tempWav])
@@ -142,7 +142,7 @@ export async function transcribeLocal(audioBuffer: ArrayBuffer): Promise<LocalST
  */
 export async function synthesizeLocal(text: string, voice: string = "expr-voice-2-f"): Promise<ArrayBuffer> {
   const tempDir = os.tmpdir()
-  const tempWav = path.join(tempDir, `speakmcp-tts-${Date.now()}.wav`)
+  const tempWav = path.join(tempDir, `vibecode-tts-${Date.now()}.wav`)
 
   try {
     const pythonPath = getTTSPythonPath()
@@ -192,7 +192,7 @@ export async function synthesizeLocal(text: string, voice: string = "expr-voice-
  * Check if local STT is available
  */
 export function isLocalSTTAvailable(): boolean {
-  const sttBinary = getBinaryPath("speakmcp-stt")
+  const sttBinary = getBinaryPath("vibecode-stt")
   return fs.existsSync(sttBinary)
 }
 

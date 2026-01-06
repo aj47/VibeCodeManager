@@ -1,4 +1,4 @@
-# SpeakMCP Docker Image
+# VibeCodeManager Docker Image
 # Multi-stage build for development and Linux builds
 #
 # Usage:
@@ -34,7 +34,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     pulseaudio \
     # X11 for headless builds
     xvfb \
-    # Rust dependencies for speakmcp-rs
+    # Rust dependencies for vibecode-rs
     libx11-dev \
     libxi-dev \
     libxcb1-dev \
@@ -83,13 +83,13 @@ FROM deps AS development
 COPY . .
 
 # Build shared package
-RUN pnpm --filter @speakmcp/shared build
+RUN pnpm --filter @vibecodemanager/shared build
 
 # Build Rust binary for Linux
-WORKDIR /app/apps/desktop/speakmcp-rs
+WORKDIR /app/apps/desktop/vibecode-rs
 RUN cargo build --release
 RUN mkdir -p /app/apps/desktop/resources/bin && \
-    cp target/release/speakmcp-rs /app/apps/desktop/resources/bin/
+    cp target/release/vibecode-rs /app/apps/desktop/resources/bin/
 
 WORKDIR /app
 
@@ -111,7 +111,7 @@ FROM development AS builder
 RUN cd apps/desktop && pnpm exec electron-builder install-app-deps
 
 # Build the application
-RUN pnpm --filter @speakmcp/shared build
+RUN pnpm --filter @vibecodemanager/shared build
 RUN cd apps/desktop && pnpm run typecheck
 RUN cd apps/desktop && pnpm run test:run
 RUN cd apps/desktop && pnpm exec electron-vite build

@@ -41,7 +41,7 @@ import {
   getToolResultsSummary,
   formatToolArguments,
   formatArgumentsPreview,
-} from '@speakmcp/shared';
+} from '@vibecodemanager/shared';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useTheme } from '../ui/ThemeProvider';
 import { spacing, radius, Theme } from '../ui/theme';

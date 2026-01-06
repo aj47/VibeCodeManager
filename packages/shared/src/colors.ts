@@ -1,5 +1,5 @@
 /**
- * SpeakMCP Shared Color Tokens
+ * VibeCodeManager Shared Color Tokens
  *
  * Design system colors aligned with shadcn/ui "new-york" style, "neutral" base.
  * These tokens are platform-agnostic and can be used by both desktop (Tailwind CSS)
@@ -10,7 +10,7 @@
 
 /**
  * Light mode color palette
- * Matches SpeakMCP desktop :root CSS variables
+ * Matches VibeCodeManager desktop :root CSS variables
  */
 export const lightColors = {
   background: '#FFFFFF',        // --background: 0 0% 100%
@@ -36,7 +36,7 @@ export const lightColors = {
 
 /**
  * Dark mode color palette
- * Matches SpeakMCP desktop .dark CSS variables
+ * Matches VibeCodeManager desktop .dark CSS variables
  */
 export const darkColors = {
   background: '#000000',        // --background: 0 0% 0%

@@ -21,7 +21,7 @@ Voice-driven orchestration of Claude Code. Users speak commands, local STT trans
 - [x] **Voice-to-Claude-Code mode** - Enabled by default
 
 ### What's NOT Done ❌
-- [ ] Build local STT binary (`speakmcp-stt`) - Required for voice input
+- [ ] Build local STT binary (`vibecode-stt`) - Required for voice input
 - [ ] Set up local TTS venv - Required for voice output
 - [ ] End-to-end testing of voice loop
 - [ ] Phase 4 polish (app icon, help panel)
@@ -81,7 +81,7 @@ cd apps/desktop
 
 ### 3. Set up Local TTS
 ```bash
-cd apps/desktop/speakmcp-tts
+cd apps/desktop/vibecode-tts
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 ```
@@ -96,7 +96,7 @@ npm run dev
 
 ---
 
-## Files Changed from SpeakMCP
+## Files Changed from VibeCodeManager
 
 ### Removed
 - `src/main/a2a/` - Entire A2A protocol folder (7 files)

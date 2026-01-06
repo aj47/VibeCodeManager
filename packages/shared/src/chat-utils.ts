@@ -1,6 +1,6 @@
 /**
- * Shared chat utilities for SpeakMCP apps (desktop and mobile)
- * 
+ * Shared chat utilities for VibeCodeManager apps (desktop and mobile)
+ *
  * These utilities provide consistent behavior for chat UI features
  * across both platforms while allowing platform-specific rendering.
  */

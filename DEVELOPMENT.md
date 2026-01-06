@@ -14,8 +14,8 @@
 ## Quick Start
 
 ```bash
-git clone https://github.com/aj47/SpeakMCP.git
-cd SpeakMCP
+git clone https://github.com/aj47/VibeCodeManager.git
+cd VibeCodeManager
 pnpm install
 pnpm build-rs  # Build Rust binary
 pnpm dev       # Start development server
@@ -46,7 +46,7 @@ docker compose run --rm --build build-linux  # Rebuild after code changes
 docker compose run --rm shell             # Interactive development shell
 ```
 
-> **Note**: SpeakMCP is an Electron desktop app that requires a display. Docker is primarily for building Linux packages.
+> **Note**: VibeCodeManager is an Electron desktop app that requires a display. Docker is primarily for building Linux packages.
 
 ## Debug Mode
 
@@ -64,12 +64,12 @@ See [apps/desktop/DEBUGGING.md](apps/desktop/DEBUGGING.md) for detailed debuggin
 ## Project Structure
 
 ```
-SpeakMCP/
+VibeCodeManager/
 ├── apps/
 │   ├── desktop/         # Electron desktop application
 │   │   ├── src/main/    # Main process (MCP, TTS, system integration)
 │   │   ├── src/renderer/# React UI
-│   │   └── speakmcp-rs/ # Rust keyboard/input binary
+│   │   └── vibecode-rs/ # Rust keyboard/input binary
 │   └── mobile/          # React Native mobile app (Expo)
 ├── packages/
 │   └── shared/          # Shared utilities and types
@@ -128,7 +128,7 @@ nvm use 20      # If using nvm
 
 ### Multi-Agent System
 
-SpeakMCP supports delegating tasks to specialized sub-agents using two protocols:
+VibeCodeManager supports delegating tasks to specialized sub-agents using two protocols:
 
 - **ACP (Agent Client Protocol)**: Zed's protocol for local agents (stdio) or remote HTTP agents
 - **A2A (Agent-to-Agent Protocol)**: Google's protocol for agent-to-agent communication

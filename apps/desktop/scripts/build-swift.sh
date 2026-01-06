@@ -3,10 +3,10 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DESKTOP_DIR="$(dirname "$SCRIPT_DIR")"
-SWIFT_DIR="$DESKTOP_DIR/speakmcp-swift"
+SWIFT_DIR="$DESKTOP_DIR/vibecode-stt"
 OUTPUT_DIR="$DESKTOP_DIR/resources/bin"
 
-echo "Building speakmcp-stt..."
+echo "Building vibecode-stt..."
 echo "Swift dir: $SWIFT_DIR"
 echo "Output dir: $OUTPUT_DIR"
 
@@ -18,7 +18,7 @@ cd "$SWIFT_DIR"
 swift build -c release
 
 # Copy the binary
-cp .build/release/speakmcp-stt "$OUTPUT_DIR/"
+cp .build/release/vibecode-stt "$OUTPUT_DIR/"
 
-echo "Built speakmcp-stt successfully!"
-ls -la "$OUTPUT_DIR/speakmcp-stt"
+echo "Built vibecode-stt successfully!"
+ls -la "$OUTPUT_DIR/vibecode-stt"
