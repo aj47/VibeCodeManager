@@ -8,6 +8,7 @@ import { app } from "electron"
 import * as path from "path"
 import * as fs from "fs"
 import * as os from "os"
+import { logApp } from "./debug"
 
 /**
  * Get the path to a bundled binary resource
@@ -135,6 +136,53 @@ export async function transcribeLocal(audioBuffer: ArrayBuffer): Promise<LocalST
 }
 
 /**
+ * Sanitize text for TTS to avoid ONNX model errors
+ * The BERT model can fail with "invalid expand shape" on certain inputs
+ */
+function sanitizeTextForTTS(text: string): string {
+  if (!text || typeof text !== "string") {
+    return "No text provided"
+  }
+
+  let sanitized = text
+    // Remove null bytes and control characters (except newlines/tabs)
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "")
+    // Replace multiple newlines/tabs with single space
+    .replace(/[\n\r\t]+/g, " ")
+    // Remove non-ASCII characters that might confuse the tokenizer
+    .replace(/[^\x20-\x7E]/g, " ")
+    // Collapse multiple spaces
+    .replace(/\s+/g, " ")
+    .trim()
+
+  // If empty after sanitization, return a default
+  if (!sanitized || sanitized.length === 0) {
+    return "No speakable text"
+  }
+
+  // Limit length to avoid model issues (BERT typically has 512 token limit)
+  // Approximate 4 chars per token, so ~2000 chars is safe
+  const MAX_TTS_LENGTH = 1500
+  if (sanitized.length > MAX_TTS_LENGTH) {
+    // Try to truncate at sentence boundary
+    const truncated = sanitized.substring(0, MAX_TTS_LENGTH)
+    const lastSentence = Math.max(
+      truncated.lastIndexOf(". "),
+      truncated.lastIndexOf("! "),
+      truncated.lastIndexOf("? ")
+    )
+    if (lastSentence > MAX_TTS_LENGTH * 0.7) {
+      sanitized = truncated.substring(0, lastSentence + 1)
+    } else {
+      const lastSpace = truncated.lastIndexOf(" ")
+      sanitized = (lastSpace > MAX_TTS_LENGTH * 0.8 ? truncated.substring(0, lastSpace) : truncated) + "..."
+    }
+  }
+
+  return sanitized
+}
+
+/**
  * Generate speech using local Kitten TTS
  * @param text - Text to synthesize
  * @param voice - Voice ID (e.g., "expr-voice-2-f")
@@ -144,12 +192,16 @@ export async function synthesizeLocal(text: string, voice: string = "expr-voice-
   const tempDir = os.tmpdir()
   const tempWav = path.join(tempDir, `vibecode-tts-${Date.now()}.wav`)
 
+  // Sanitize text to avoid ONNX model errors
+  const sanitizedText = sanitizeTextForTTS(text)
+  logApp(`[TTS] Synthesizing ${sanitizedText.length} chars: "${sanitizedText.substring(0, 100)}..."`)
+
   try {
     const pythonPath = getTTSPythonPath()
     const scriptPath = getTTSScriptPath()
 
     return new Promise((resolve, reject) => {
-      const tts = spawn(pythonPath, [scriptPath, tempWav, "--voice", voice, "--text", text])
+      const tts = spawn(pythonPath, [scriptPath, tempWav, "--voice", voice, "--text", sanitizedText])
       let stdout = ""
       let stderr = ""
 
