@@ -221,12 +221,86 @@ export async function processVoiceCommand(
     // Use provided workingDirectory or get from active project
     const cwd = workingDirectory || getActiveProjectCwd()
 
-    const agentResponse = await acpService.runTask({
-      agentName,
-      input: transcript,
-      cwd,
-      context: cwd ? `Working directory: ${cwd}` : undefined,
-    })
+    // Track accumulated streaming content for UI updates
+    let streamingText = ""
+    let lastEmitTime = 0
+    const STREAM_EMIT_THROTTLE_MS = 100
+
+    // Set up listener for ACP session updates to enable streaming
+    const sessionUpdateHandler = (event: {
+      agentName: string
+      sessionId: string
+      content?: Array<{ type: string; text?: string; name?: string }>
+      isComplete?: boolean
+    }) => {
+      // Only handle updates from the agent we're calling
+      if (event.agentName !== agentName) return
+
+      // Extract text content from the update
+      if (event.content && Array.isArray(event.content)) {
+        for (const block of event.content) {
+          if (block.type === "text" && block.text) {
+            streamingText += block.text
+          }
+        }
+      }
+
+      // Throttle UI updates to avoid spam
+      const now = Date.now()
+      if (now - lastEmitTime < STREAM_EMIT_THROTTLE_MS && !event.isComplete) {
+        return
+      }
+      lastEmitTime = now
+
+      // Emit streaming progress to UI
+      if (streamingText) {
+        emitAgentProgress({
+          sessionId,
+          currentIteration: 1,
+          maxIterations: 3,
+          steps: [{
+            id: `agent_streaming_${Date.now()}`,
+            type: "tool_call",
+            title: "Claude Code responding",
+            description: "Streaming response...",
+            status: "in_progress",
+            timestamp: Date.now(),
+          }],
+          conversationHistory: [
+            ...conversationHistory,
+            {
+              role: "assistant" as const,
+              content: streamingText,
+              timestamp: Date.now(),
+              isComplete: false,
+            }
+          ],
+          streamingContent: {
+            text: streamingText,
+            isStreaming: !event.isComplete,
+          },
+          isComplete: false,
+        }).catch(err => {
+          logApp(`[VoicePipeline] Failed to emit streaming progress: ${err}`)
+        })
+      }
+    }
+
+    // Register the listener
+    acpService.on("sessionUpdate", sessionUpdateHandler)
+
+    let agentResponse: { success: boolean; result?: string; error?: string }
+    try {
+      agentResponse = await acpService.runTask({
+        agentName,
+        input: transcript,
+        cwd,
+        context: cwd ? `Working directory: ${cwd}` : undefined,
+      })
+    } finally {
+      // Always clean up the listener
+      acpService.off("sessionUpdate", sessionUpdateHandler)
+    }
 
     if (!agentResponse.success) {
       conversationHistory.push({
@@ -260,7 +334,8 @@ export async function processVoiceCommand(
       }
     }
 
-    const response = agentResponse.result || "Task completed."
+    // Use accumulated streaming content if available, otherwise use final response
+    const response = streamingText || agentResponse.result || "Task completed."
     logApp(`[VoicePipeline] Agent response: "${response.substring(0, 200)}..."`)
 
     // Add assistant response to conversation history
@@ -525,19 +600,95 @@ export async function processTextCommand(
     // Use provided workingDirectory or get from active project
     const cwd = workingDirectory || getActiveProjectCwd()
 
-    const agentResponse = await acpService.runTask({
-      agentName,
-      input: text,
-      cwd,
-      context: cwd ? `Working directory: ${cwd}` : undefined,
-    })
+    // Track accumulated streaming content for UI updates
+    let streamingText = ""
+    let lastEmitTime = 0
+    const STREAM_EMIT_THROTTLE_MS = 100
 
-    if (!agentResponse.success) {
-      throw new Error(agentResponse.error || "Agent returned unsuccessful response")
+    // Set up listener for ACP session updates to enable streaming
+    // We listen to the agent we're about to call and forward updates to our UI session
+    const sessionUpdateHandler = (event: {
+      agentName: string
+      sessionId: string
+      content?: Array<{ type: string; text?: string; name?: string }>
+      isComplete?: boolean
+    }) => {
+      // Only handle updates from the agent we're calling
+      if (event.agentName !== agentName) return
+
+      // Extract text content from the update
+      if (event.content && Array.isArray(event.content)) {
+        for (const block of event.content) {
+          if (block.type === "text" && block.text) {
+            streamingText += block.text
+          }
+        }
+      }
+
+      // Throttle UI updates to avoid spam
+      const now = Date.now()
+      if (now - lastEmitTime < STREAM_EMIT_THROTTLE_MS && !event.isComplete) {
+        return
+      }
+      lastEmitTime = now
+
+      // Emit streaming progress to UI
+      if (streamingText) {
+        emitAgentProgress({
+          sessionId,
+          currentIteration: 1,
+          maxIterations: 2,
+          steps: [{
+            id: `agent_streaming_${Date.now()}`,
+            type: "tool_call",
+            title: "Claude Code responding",
+            description: "Streaming response...",
+            status: "in_progress",
+            timestamp: Date.now(),
+          }],
+          conversationHistory: [
+            ...conversationHistory,
+            {
+              role: "assistant" as const,
+              content: streamingText,
+              timestamp: Date.now(),
+              isComplete: false,
+            }
+          ],
+          streamingContent: {
+            text: streamingText,
+            isStreaming: !event.isComplete,
+          },
+          isComplete: false,
+        }).catch(err => {
+          logApp(`[TextPipeline] Failed to emit streaming progress: ${err}`)
+        })
+      }
     }
 
-    const response = agentResponse.result || "No response from agent"
-    logApp(`[TextPipeline] Got response: ${response.substring(0, 100)}...`)
+    // Register the listener
+    acpService.on("sessionUpdate", sessionUpdateHandler)
+
+    let response: string
+    try {
+      const agentResponse = await acpService.runTask({
+        agentName,
+        input: text,
+        cwd,
+        context: cwd ? `Working directory: ${cwd}` : undefined,
+      })
+
+      if (!agentResponse.success) {
+        throw new Error(agentResponse.error || "Agent returned unsuccessful response")
+      }
+
+      // Use accumulated streaming content if available, otherwise use final response
+      response = streamingText || agentResponse.result || "No response from agent"
+      logApp(`[TextPipeline] Got response: ${response.substring(0, 100)}...`)
+    } finally {
+      // Always clean up the listener
+      acpService.off("sessionUpdate", sessionUpdateHandler)
+    }
 
     // Add assistant response to conversation history
     conversationHistory.push({
