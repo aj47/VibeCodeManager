@@ -187,6 +187,10 @@ export interface AgentProgressUpdate {
   steps: AgentProgressStep[]
   isComplete: boolean
   isSnoozed?: boolean
+  /** Parent session ID if this is a sub-agent */
+  parentSessionId?: string
+  /** Depth level in the agent hierarchy (0 = root agent) */
+  depth?: number
   finalContent?: string
   conversationHistory?: Array<{
     role: "user" | "assistant" | "tool"
@@ -530,6 +534,11 @@ export type Config = {
   toggleVoiceDictationHotkey?: "fn" | "f1" | "f2" | "f3" | "f4" | "f5" | "f6" | "f7" | "f8" | "f9" | "f10" | "f11" | "f12" | "custom"
   customToggleVoiceDictationHotkey?: string
 
+  // Wake Word Configuration (hands-free voice activation)
+  wakeWordEnabled?: boolean
+  wakePhrase?: string // e.g., "hey vibe", "computer"
+  wakeWordSensitivity?: "low" | "medium" | "high"
+
   // Theme Configuration
   themePreference?: "system" | "light" | "dark"
 
@@ -675,6 +684,10 @@ export type Config = {
   // When false, the floating panel will not automatically appear during agent sessions
   // Users can still manually access the panel via hotkeys, tray menu, or UI
   floatingPanelAutoShow?: boolean
+
+  // Audio Cues Configuration
+  // When enabled, audio cues play for agent events (completion, approval needed, errors, etc.)
+  audioCuesEnabled?: boolean
 
   // API Retry Configuration
   apiRetryCount?: number

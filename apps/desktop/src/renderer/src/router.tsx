@@ -6,12 +6,24 @@ export const router: ReturnType<typeof createBrowserRouter> =
       path: "/",
       lazy: () => import("./components/app-layout"),
       children: [
+        // Level 1: Project Dashboard (all projects overview)
         {
           path: "",
+          lazy: () => import("./components/project-dashboard"),
+        },
+        // Level 2: Project View (single project with all agents)
+        {
+          path: "project/:projectId",
+          lazy: () => import("./components/project-view"),
+        },
+        // Level 3: Agent Terminal View (single agent session)
+        {
+          path: "project/:projectId/agent/:sessionId",
           lazy: () => import("./pages/sessions"),
         },
+        // Legacy session routes (keep for backwards compatibility)
         {
-          path: ":id",
+          path: "session/:id",
           lazy: () => import("./pages/sessions"),
         },
         {

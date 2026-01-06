@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { rendererHandlers, tipcClient } from '@renderer/lib/tipc-client'
 import { useAgentStore, useConversationStore } from '@renderer/stores'
+import { useNavigationStore } from '@renderer/stores/navigation-store'
 import { AgentProgressUpdate, Conversation, ConversationMessage, QueuedMessage } from '@shared/types'
 import { logUI, logStateChange } from '@renderer/lib/debug'
 import { useSaveConversationMutation } from '@renderer/lib/queries'
@@ -107,6 +108,55 @@ export function useStoreSync() {
     }).catch((error) => {
       logUI('[useStoreSync] Failed to hydrate message queues:', error)
     })
+  }, [])
+
+  // Listen for voice navigation commands from main process
+  useEffect(() => {
+    const handler = (
+      _event: unknown,
+      command: { action: string; projectId?: string; agentSessionId?: string }
+    ) => {
+      logUI('[useStoreSync] Received voice navigation command:', command)
+      const { action, projectId, agentSessionId } = command
+      const navStore = useNavigationStore.getState()
+
+      switch (action) {
+        case 'navigateToDashboard':
+        case 'dashboard':
+          navStore.navigateToDashboard()
+          break
+        case 'goBack':
+        case 'back':
+          navStore.goBack()
+          break
+        case 'navigateToProject':
+        case 'project':
+          if (projectId) {
+            navStore.navigateToProject(projectId)
+          }
+          break
+        case 'navigateToAgent':
+        case 'agent':
+          if (projectId && agentSessionId) {
+            navStore.navigateToAgent(projectId, agentSessionId)
+          }
+          break
+        default:
+          logUI('[useStoreSync] Unknown voice navigation action:', action)
+      }
+    }
+
+    const ipcRenderer = window.electron?.ipcRenderer
+    if (ipcRenderer?.on) {
+      ipcRenderer.on('voice-navigation', handler)
+    }
+
+    return () => {
+      // Clean up the listener on unmount
+      if (ipcRenderer?.removeListener) {
+        ipcRenderer.removeListener('voice-navigation', handler)
+      }
+    }
   }, [])
 
   async function saveCompleteConversationHistory(

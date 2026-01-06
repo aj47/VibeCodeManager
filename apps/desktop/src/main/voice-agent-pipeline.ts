@@ -13,6 +13,11 @@ import { configStore } from "./config"
 import { logApp } from "./debug"
 import { emitAgentProgress } from "./emit-agent-progress"
 import { agentSessionTracker } from "./agent-session-tracker"
+import { parseVoiceCommand, type ParsedVoiceCommand, type VoiceCommandContext } from "./voice-command-parser"
+import { handleVoiceNavigation } from "./voice-navigation-handler"
+import { handleVoiceStatus } from "./voice-status-handler"
+import { resolveVoiceTarget, getCurrentTargetContext } from "./voice-targeting"
+import { playAudioCue, playThinkingCue, playSuccessCue, playErrorCue, playNavigationCue } from "./audio-cues"
 
 export interface VoiceCommandResult {
   success: boolean
@@ -31,6 +36,10 @@ export interface VoiceCommandOptions {
   speakResponse?: boolean
   /** Optional existing session ID to continue conversation */
   sessionId?: string
+  /** Optional project ID for command context */
+  projectId?: string
+  /** Optional agent session ID for command context */
+  agentSessionId?: string
 }
 
 /**
@@ -199,8 +208,248 @@ export async function processVoiceCommand(
       isComplete: false,
     })
 
+    // Parse the voice command to determine type and target
+    const commandContext: VoiceCommandContext = {
+      focusedProject: options.projectId,
+      focusedAgent: options.agentSessionId,
+      // Get current UI focus from the main process state if available
+    }
+
+    const parsedCommand = parseVoiceCommand(transcript, commandContext)
+    logApp(`[VoicePipeline] Parsed command type: ${parsedCommand.type}`, {
+      target: parsedCommand.target,
+      navigation: parsedCommand.navigation,
+      statusQuery: parsedCommand.statusQuery,
+      controlAction: parsedCommand.controlAction,
+      approvalAction: parsedCommand.approvalAction,
+    })
+
+    // Handle different command types
+    switch (parsedCommand.type) {
+      case 'navigation': {
+        await emitAgentProgress({
+          sessionId,
+          currentIteration: 2,
+          maxIterations: 3,
+          steps: [{
+            id: `navigation_${Date.now()}`,
+            type: "thinking",
+            title: "Navigating...",
+            description: `Processing navigation: ${parsedCommand.navigation}`,
+            status: "in_progress",
+            timestamp: Date.now(),
+          }],
+          conversationHistory,
+          isComplete: false,
+        })
+
+        const navResult = await handleVoiceNavigation(parsedCommand)
+
+        conversationHistory.push({
+          role: "assistant",
+          content: navResult.success
+            ? `Navigated to ${navResult.navigatedTo || 'destination'}`
+            : `Navigation failed: ${navResult.error}`,
+          timestamp: Date.now(),
+          isComplete: true,
+        })
+
+        // Play audio feedback for navigation result
+        if (navResult.success) {
+          // Play navigation sound with spoken confirmation
+          await playNavigationCue(navResult.navigatedTo)
+        } else {
+          // Play error sound for failed navigation
+          await playErrorCue(`Could not navigate: ${navResult.error || 'unknown error'}`)
+        }
+
+        await emitAgentProgress({
+          sessionId,
+          currentIteration: 3,
+          maxIterations: 3,
+          steps: [{
+            id: `navigation_done_${Date.now()}`,
+            type: "thinking",
+            title: navResult.success ? "Navigated" : "Navigation failed",
+            description: navResult.success
+              ? `Navigated to ${navResult.navigatedTo || 'destination'}`
+              : navResult.error || "Navigation failed",
+            status: navResult.success ? "completed" : "error",
+            timestamp: Date.now(),
+          }],
+          conversationHistory,
+          isComplete: true,
+        })
+
+        agentSessionTracker.completeSession(sessionId, "Navigation command completed")
+
+        return {
+          success: navResult.success,
+          transcript,
+          response: navResult.success
+            ? `Navigated to ${navResult.navigatedTo}`
+            : navResult.error,
+          error: navResult.success ? undefined : navResult.error,
+          sessionId,
+        }
+      }
+
+      case 'status': {
+        await emitAgentProgress({
+          sessionId,
+          currentIteration: 2,
+          maxIterations: 3,
+          steps: [{
+            id: `status_${Date.now()}`,
+            type: "thinking",
+            title: "Checking status...",
+            description: `Gathering ${parsedCommand.statusQuery} status`,
+            status: "in_progress",
+            timestamp: Date.now(),
+          }],
+          conversationHistory,
+          isComplete: false,
+        })
+
+        const statusResult = await handleVoiceStatus(parsedCommand)
+
+        conversationHistory.push({
+          role: "assistant",
+          content: statusResult.spokenSummary,
+          timestamp: Date.now(),
+          isComplete: true,
+        })
+
+        await emitAgentProgress({
+          sessionId,
+          currentIteration: 3,
+          maxIterations: 3,
+          steps: [{
+            id: `status_done_${Date.now()}`,
+            type: "thinking",
+            title: statusResult.success ? "Status retrieved" : "Status check failed",
+            description: statusResult.spokenSummary || statusResult.error || "Status check complete",
+            status: statusResult.success ? "completed" : "error",
+            timestamp: Date.now(),
+          }],
+          conversationHistory,
+          isComplete: true,
+        })
+
+        agentSessionTracker.completeSession(sessionId, "Status command completed")
+
+        return {
+          success: statusResult.success,
+          transcript,
+          response: statusResult.spokenSummary,
+          error: statusResult.success ? undefined : statusResult.error,
+          sessionId,
+        }
+      }
+
+      case 'approval': {
+        // Handle approval commands (approve/deny pending tool calls)
+        // TODO: Implement approval handler when tool call approval system is ready
+        const approvalMessage = parsedCommand.approvalAction === 'approve'
+          ? "Approval noted. Approval system integration pending."
+          : parsedCommand.approvalAction === 'deny'
+          ? "Denial noted. Approval system integration pending."
+          : "More details requested. Approval system integration pending."
+
+        conversationHistory.push({
+          role: "assistant",
+          content: approvalMessage,
+          timestamp: Date.now(),
+          isComplete: true,
+        })
+
+        await emitAgentProgress({
+          sessionId,
+          currentIteration: 3,
+          maxIterations: 3,
+          steps: [{
+            id: `approval_${Date.now()}`,
+            type: "thinking",
+            title: "Approval command",
+            description: approvalMessage,
+            status: "completed",
+            timestamp: Date.now(),
+          }],
+          conversationHistory,
+          isComplete: true,
+        })
+
+        agentSessionTracker.completeSession(sessionId, "Approval command completed")
+
+        return {
+          success: true,
+          transcript,
+          response: approvalMessage,
+          sessionId,
+        }
+      }
+
+      case 'control': {
+        // Handle control commands (stop/pause/resume)
+        // TODO: Implement control handler when agent control system is ready
+        const controlMessage = `Control action "${parsedCommand.controlAction}" noted. Control system integration pending.`
+
+        conversationHistory.push({
+          role: "assistant",
+          content: controlMessage,
+          timestamp: Date.now(),
+          isComplete: true,
+        })
+
+        await emitAgentProgress({
+          sessionId,
+          currentIteration: 3,
+          maxIterations: 3,
+          steps: [{
+            id: `control_${Date.now()}`,
+            type: "thinking",
+            title: "Control command",
+            description: controlMessage,
+            status: "completed",
+            timestamp: Date.now(),
+          }],
+          conversationHistory,
+          isComplete: true,
+        })
+
+        agentSessionTracker.completeSession(sessionId, "Control command completed")
+
+        return {
+          success: true,
+          transcript,
+          response: controlMessage,
+          sessionId,
+        }
+      }
+
+      case 'prompt':
+      default:
+        // Continue with existing Claude Code routing
+        // Resolve target if specified, otherwise use default
+        break
+    }
+
+    // For 'prompt' type commands, resolve the target and send to Claude Code
+    const targetContext = getCurrentTargetContext()
+    if (parsedCommand.target) {
+      const resolvedTarget = resolveVoiceTarget(parsedCommand.target, targetContext)
+      if (resolvedTarget.success) {
+        logApp(`[VoicePipeline] Resolved voice target: projectId=${resolvedTarget.projectId}, agentSessionId=${resolvedTarget.agentSessionId}`)
+      } else {
+        logApp(`[VoicePipeline] Could not resolve voice target: ${resolvedTarget.error}`)
+      }
+    }
+
     // Step 2: Send to Claude Code via ACP
     logApp(`[VoicePipeline] Sending to agent: ${agentName}`)
+
+    // Play thinking sound to indicate processing
+    await playThinkingCue()
 
     await emitAgentProgress({
       sessionId,
@@ -310,6 +559,9 @@ export async function processVoiceCommand(
         isComplete: true,
       })
 
+      // Play error sound
+      await playErrorCue("Something went wrong with the agent")
+
       await emitAgentProgress({
         sessionId,
         currentIteration: 2,
@@ -394,6 +646,9 @@ export async function processVoiceCommand(
       }
     }
 
+    // Play success sound for completed command
+    await playSuccessCue()
+
     // Mark complete with full conversation history
     await emitAgentProgress({
       sessionId,
@@ -432,6 +687,9 @@ export async function processVoiceCommand(
         isComplete: true,
       })
     }
+
+    // Play error sound for failed command
+    await playErrorCue()
 
     await emitAgentProgress({
       sessionId,
@@ -580,6 +838,9 @@ export async function processTextCommand(
       timestamp: userTimestamp,
       isComplete: true,
     })
+
+    // Play thinking sound to indicate processing
+    await playThinkingCue()
 
     await emitAgentProgress({
       sessionId,
@@ -731,6 +992,9 @@ export async function processTextCommand(
       }
     }
 
+    // Play success sound for completed command
+    await playSuccessCue()
+
     // Mark complete with full conversation history
     await emitAgentProgress({
       sessionId,
@@ -768,6 +1032,9 @@ export async function processTextCommand(
         isComplete: true,
       })
     }
+
+    // Play error sound for failed command
+    await playErrorCue()
 
     await emitAgentProgress({
       sessionId,

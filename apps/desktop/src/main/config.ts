@@ -48,6 +48,10 @@ const getConfig = () => {
     // Toggle voice dictation defaults
     toggleVoiceDictationEnabled: false,
     toggleVoiceDictationHotkey: "fn",
+    // Wake word defaults (hands-free voice activation)
+    wakeWordEnabled: false, // Disabled by default - opt-in feature
+    wakePhrase: "hey vibe",
+    wakeWordSensitivity: "medium",
     // Custom shortcut defaults
     customShortcut: "",
     customShortcutMode: "hold", // Default to hold mode for custom recording shortcut
@@ -71,6 +75,8 @@ const getConfig = () => {
     floatingPanelAutoShow: true,
     // Theme preference defaults
     themePreference: "system",
+    // Audio cues - when true, system sounds play for agent events
+    audioCuesEnabled: true,
 
 	    // App behavior
 	    launchAtLogin: false,

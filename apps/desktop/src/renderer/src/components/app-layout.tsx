@@ -6,6 +6,8 @@ import { LoadingSpinner } from "@renderer/components/ui/loading-spinner"
 import { SettingsDragBar } from "@renderer/components/settings-drag-bar"
 import { ActiveAgentsSidebar } from "@renderer/components/active-agents-sidebar"
 import { SidebarProfileSelector } from "@renderer/components/sidebar-profile-selector"
+import { CommandBar } from "@renderer/components/command-bar"
+import { NotificationBadges } from "@renderer/components/notification-badges"
 import { useSidebar, SIDEBAR_DIMENSIONS } from "@renderer/hooks/use-sidebar"
 import { PanelLeftClose, PanelLeft } from "lucide-react"
 import { useConfigQuery } from "@renderer/lib/query-client"
@@ -260,11 +262,17 @@ export const Component = () => {
         {/* Draggable top bar for Mac - allows window dragging while content scrolls */}
         {process.env.IS_MAC && <SettingsDragBar />}
 
-        {/* Scrollable content area */}
-        <div className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
+        {/* Scrollable content area - padding-bottom accounts for fixed CommandBar */}
+        <div className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden pb-20">
           <Outlet />
         </div>
       </div>
+
+      {/* Command Bar - fixed at bottom, visible on all routes */}
+      <CommandBar />
+
+      {/* Notification Badges - floating in top-right corner */}
+      <NotificationBadges position="top-right" />
     </div>
   )
 }
