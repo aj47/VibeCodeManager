@@ -1336,53 +1336,12 @@ export const router = {
             // Active session exists - transcribe audio and queue the result
             logApp(`[createMcpRecording] Active session ${activeSessionId} found for conversation ${input.conversationId}, will queue transcript`)
 
-            // Transcribe the audio first
-            const form = new FormData()
-            form.append(
-              "file",
-              new File([input.recording], "recording.webm", { type: "audio/webm" }),
-            )
-            form.append(
-              "model",
-              config.sttProviderId === "groq" ? "whisper-large-v3" : "whisper-1",
-            )
-            form.append("response_format", "json")
-
-            if (config.sttProviderId === "groq" && config.groqSttPrompt?.trim()) {
-              form.append("prompt", config.groqSttPrompt.trim())
+            // Transcribe the audio using local STT
+            const sttResult = await transcribeLocal(input.recording)
+            if (!sttResult.success) {
+              throw new Error(sttResult.error || "Local STT failed. Make sure FluidAudio is installed.")
             }
-
-            const languageCode = config.sttProviderId === "groq"
-              ? config.groqSttLanguage || config.sttLanguage
-              : config.openaiSttLanguage || config.sttLanguage
-
-            if (languageCode && languageCode !== "auto") {
-              form.append("language", languageCode)
-            }
-
-            const groqBaseUrl = config.groqBaseUrl || "https://api.groq.com/openai/v1"
-            const openaiBaseUrl = config.openaiBaseUrl || "https://api.openai.com/v1"
-
-            const transcriptResponse = await fetch(
-              config.sttProviderId === "groq"
-                ? `${groqBaseUrl}/audio/transcriptions`
-                : `${openaiBaseUrl}/audio/transcriptions`,
-              {
-                method: "POST",
-                headers: {
-                  Authorization: `Bearer ${config.sttProviderId === "groq" ? config.groqApiKey : config.openaiApiKey}`,
-                },
-                body: form,
-              },
-            )
-
-            if (!transcriptResponse.ok) {
-              const message = `${transcriptResponse.statusText} ${(await transcriptResponse.text()).slice(0, 300)}`
-              throw new Error(message)
-            }
-
-            const json: { text: string } = await transcriptResponse.json()
-            transcript = json.text
+            transcript = sttResult.text
 
             // Save the recording file
             const recordingId = Date.now().toString()
@@ -1506,55 +1465,12 @@ export const router = {
           conversationHistory: [],
         })
 
-        // First, transcribe the audio using the same logic as regular recording
-      // Use OpenAI or Groq for transcription
-      const form = new FormData()
-      form.append(
-        "file",
-        new File([input.recording], "recording.webm", { type: "audio/webm" }),
-      )
-      form.append(
-        "model",
-        config.sttProviderId === "groq" ? "whisper-large-v3" : "whisper-1",
-      )
-      form.append("response_format", "json")
-
-      if (config.sttProviderId === "groq" && config.groqSttPrompt?.trim()) {
-        form.append("prompt", config.groqSttPrompt.trim())
+        // Transcribe the audio using local STT
+      const sttResult = await transcribeLocal(input.recording)
+      if (!sttResult.success) {
+        throw new Error(sttResult.error || "Local STT failed. Make sure FluidAudio is installed.")
       }
-
-      // Add language parameter if specified
-      const languageCode = config.sttProviderId === "groq"
-        ? config.groqSttLanguage || config.sttLanguage
-        : config.openaiSttLanguage || config.sttLanguage;
-
-      if (languageCode && languageCode !== "auto") {
-        form.append("language", languageCode)
-      }
-
-      const groqBaseUrl = config.groqBaseUrl || "https://api.groq.com/openai/v1"
-      const openaiBaseUrl = config.openaiBaseUrl || "https://api.openai.com/v1"
-
-      const transcriptResponse = await fetch(
-        config.sttProviderId === "groq"
-          ? `${groqBaseUrl}/audio/transcriptions`
-          : `${openaiBaseUrl}/audio/transcriptions`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${config.sttProviderId === "groq" ? config.groqApiKey : config.openaiApiKey}`,
-          },
-          body: form,
-        },
-      )
-
-      if (!transcriptResponse.ok) {
-        const message = `${transcriptResponse.statusText} ${(await transcriptResponse.text()).slice(0, 300)}`
-        throw new Error(message)
-      }
-
-      const json: { text: string } = await transcriptResponse.json()
-      transcript = json.text
+      transcript = sttResult.text
 
       // Create or continue conversation
       let conversationId = input.conversationId

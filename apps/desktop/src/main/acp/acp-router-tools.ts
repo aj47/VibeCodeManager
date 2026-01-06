@@ -152,6 +152,10 @@ function prepareConversationForUI(conversation: ACPSubAgentMessage[]): ACPSubAge
 
 /**
  * Listen to session updates from ACP service and forward to UI
+ *
+ * Note: This listener only handles updates for delegated runs (via delegate_to_agent tool).
+ * Direct runTask calls from voice-agent-pipeline.ts bypass this - those sessions won't have
+ * a runId mapping here, which is expected and not an error.
  */
 acpService.on('sessionUpdate', (event: {
   agentName: string;
@@ -162,8 +166,6 @@ acpService.on('sessionUpdate', (event: {
   totalBlocks: number;
 }) => {
   const { agentName, sessionId, content, isComplete, stopReason } = event;
-
-  logACPRouter(`Session update from ${agentName}:`, { sessionId, isComplete, contentBlocks: content?.length });
 
   // Find the run ID for this session
   const mappedRunId = sessionToRunId.get(sessionId);
@@ -178,10 +180,14 @@ acpService.on('sessionUpdate', (event: {
       runId = activeRunId;
       logACPRouter(`Created session mapping: ${sessionId} -> ${runId} (via agent name fallback)`);
     } else {
-      logACPRouter(`No run ID found for session ${sessionId} or agent ${agentName}`);
+      // No run ID means this is a direct runTask call (e.g., from voice pipeline), not a delegation.
+      // This is expected behavior, not an error - just silently ignore these updates.
       return;
     }
   }
+
+  // Only log for tracked delegation runs to avoid spam
+  logACPRouter(`Session update from ${agentName}:`, { sessionId, isComplete, contentBlocks: content?.length });
 
   let subAgentState = delegatedRuns.get(runId);
   if (!subAgentState) {
