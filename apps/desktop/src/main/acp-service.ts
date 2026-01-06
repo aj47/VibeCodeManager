@@ -309,7 +309,15 @@ class ACPService extends EventEmitter {
     }
 
     // Handle tool call updates from the notification
-    const toolCallUpdate = params.toolCall || params.update?.toolCall
+    // Check for tool_call_update in the update object (Claude Code format)
+    const toolCallUpdate = params.toolCall || params.update?.toolCall ||
+      (params.update?.sessionUpdate === "tool_call_update" ? {
+        toolCallId: (params.update as any).toolCallId,
+        title: (params.update as any).title || "Tool",
+        status: (params.update as any).status,
+        content: (params.update as any).content,
+      } : undefined)
+
     if (toolCallUpdate) {
       logApp(`[ACP:${agentName}] Tool call update: ${toolCallUpdate.title} (status: ${toolCallUpdate.status})`)
       this.emit("toolCallUpdate", {
@@ -318,6 +326,30 @@ class ACPService extends EventEmitter {
         toolCall: toolCallUpdate,
         awaitingPermission: false,
       })
+
+      // If the tool call failed (e.g., Claude Code timeout), clear any pending approval
+      // This handles the case where Claude Code times out waiting for user approval
+      if (toolCallUpdate.status === "failed") {
+        // Get the UI session ID (may be different from ACP session ID)
+        const uiSessionId = this.acpToParentSessionId.get(sessionId) || sessionId
+
+        // Check if there's a pending approval for this session and cancel it
+        const pendingApproval = toolApprovalManager.getPendingApproval(uiSessionId)
+        if (pendingApproval) {
+          logApp(`[ACP:${agentName}] Cancelling pending approval for failed tool call: ${pendingApproval.approvalId}`)
+          toolApprovalManager.respondToApproval(pendingApproval.approvalId, false)
+
+          // Emit progress update to clear the pendingToolApproval from UI
+          emitAgentProgress({
+            sessionId: uiSessionId,
+            currentIteration: 0,
+            maxIterations: 10,
+            steps: [],
+            isComplete: false,
+            // No pendingToolApproval - this clears it from the UI
+          })
+        }
+      }
     }
 
     // Emit event for real-time UI updates
