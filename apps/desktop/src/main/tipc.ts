@@ -379,7 +379,7 @@ import { diagnosticsService } from "./diagnostics"
 import { updateTrayIcon } from "./tray"
 import { isAccessibilityGranted } from "./utils"
 import { writeText, writeTextWithFocusRestore } from "./keyboard"
-import { preprocessTextForTTS, validateTTSText } from "@speakmcp/shared"
+import { preprocessTextForTTS, validateTTSText } from "@vibecodemanager/shared"
 
 
 const t = tipc.create()
@@ -2802,7 +2802,7 @@ export const router = {
         // We include displayName to satisfy the ACPAgentConfig contract and avoid undefined issues
         agents.push({
           name: input.agentName,
-          displayName: input.agentName === 'internal' ? 'SpeakMCP Internal' : input.agentName,
+          displayName: input.agentName === 'internal' ? 'VibeCodeManager Internal' : input.agentName,
           enabled: input.enabled,
           isInternal: input.agentName === 'internal',
           connection: { type: 'internal' as const }

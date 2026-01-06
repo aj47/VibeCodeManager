@@ -13,7 +13,7 @@ export const TILE_DIMENSIONS = {
   },
 } as const
 
-const STORAGE_KEY_PREFIX = "speakmcp-resizable-"
+const STORAGE_KEY_PREFIX = "vibecodemanager-resizable-"
 
 export interface UseResizableOptions {
   initialWidth?: number

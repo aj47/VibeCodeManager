@@ -34,7 +34,7 @@ registerServeSchema()
 
 app.whenReady().then(() => {
   initDebugFlags(process.argv)
-  logApp("SpeakMCP starting up...")
+  logApp("VibeCodeManager starting up...")
 
   initializeDeepLinkHandling()
   logApp("Deep link handling initialized")

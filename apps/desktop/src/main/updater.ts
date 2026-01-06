@@ -13,7 +13,7 @@ if (import.meta.env.PROD) {
     provider: "github",
     host: "electron-releases.umida.co",
     owner: "aj47",
-    repo: "SpeakMCP",
+    repo: "VibeCodeManager",
   })
 }
 

@@ -325,7 +325,7 @@ function AgentDialog({
             <div>
               <label className="text-sm font-medium">Auto-spawn on startup</label>
               <p className="text-xs text-muted-foreground">
-                Automatically start this agent when SpeakMCP launches
+                Automatically start this agent when VibeCodeManager launches
               </p>
             </div>
             <Switch checked={autoSpawn} onCheckedChange={setAutoSpawn} />
@@ -471,7 +471,7 @@ export function Component() {
               >
                 Claude Code ACP
               </a>
-              . These agents can be delegated tasks from SpeakMCP.
+              . These agents can be delegated tasks from VibeCodeManager.
             </div>
           }
         >

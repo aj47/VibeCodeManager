@@ -1629,7 +1629,7 @@ Return ONLY JSON per schema.`,
     }
 
     // Handle no-op iterations (no tool calls and no explicit completion)
-    // Fix for https://github.com/aj47/SpeakMCP/issues/443:
+    // Fix for https://github.com/aj47/VibeCodeManager/issues/443:
     // Only terminate when needsMoreWork is EXPLICITLY false, not when undefined.
     // When LLM returns plain text without JSON structure, needsMoreWork will be undefined,
     // and we should nudge for proper JSON format rather than accepting it as final.

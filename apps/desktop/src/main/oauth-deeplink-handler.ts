@@ -79,7 +79,7 @@ export class OAuthDeepLinkHandler {
       }
       const pathname = fullPath.replace(/^\/+/, '/')
 
-      const isOAuthProtocol = parsedUrl.protocol.toLowerCase() === 'speakmcp:'
+      const isOAuthProtocol = parsedUrl.protocol.toLowerCase() === 'vibecode:'
       const isOAuthPath = pathname === '/oauth/callback'
 
       if (isOAuthProtocol && isOAuthPath) {
@@ -209,8 +209,8 @@ export function initializeDeepLinkHandling(): void {
   // In development, deep links won't work but we'll provide fallback
   if (process.env.NODE_ENV === 'production' || !process.env.ELECTRON_RENDERER_URL) {
     try {
-      if (!app.isDefaultProtocolClient('speakmcp')) {
-        app.setAsDefaultProtocolClient('speakmcp')
+      if (!app.isDefaultProtocolClient('vibecode')) {
+        app.setAsDefaultProtocolClient('vibecode')
       }
     } catch (error) {
       // Silently fail - protocol registration is not critical

@@ -253,7 +253,7 @@ function SetupCheckStep({
           <div className="flex-1">
             <div className="font-medium">Local Speech-to-Text</div>
             <div className="text-sm text-muted-foreground">
-              {status.hasLocalSTT ? "FluidAudio ready" : "Build speakmcp-stt binary"}
+              {status.hasLocalSTT ? "FluidAudio ready" : "Build vibecode-stt binary"}
             </div>
           </div>
         </div>
@@ -274,7 +274,7 @@ function SetupCheckStep({
           <div className="flex-1">
             <div className="font-medium">Local Text-to-Speech</div>
             <div className="text-sm text-muted-foreground">
-              {status.hasLocalTTS ? "Kitten TTS ready" : "Optional - set up speakmcp-tts"}
+              {status.hasLocalTTS ? "Kitten TTS ready" : "Optional - set up vibecode-tts"}
             </div>
           </div>
         </div>

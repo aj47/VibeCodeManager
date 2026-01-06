@@ -15,7 +15,7 @@ import { TileFollowUpInput } from "./tile-follow-up-input"
 import { OverlayFollowUpInput } from "./overlay-follow-up-input"
 import { MessageQueuePanel } from "@renderer/components/message-queue-panel"
 import { useResizable, TILE_DIMENSIONS } from "@renderer/hooks/use-resizable"
-import { getToolResultsSummary } from "@speakmcp/shared"
+import { getToolResultsSummary } from "@vibecodemanager/shared"
 
 interface AgentProgressProps {
   progress: AgentProgressUpdate | null

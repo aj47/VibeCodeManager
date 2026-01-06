@@ -1,5 +1,5 @@
 /**
- * Built-in MCP Tools for SpeakMCP Settings Management
+ * Built-in MCP Tools for VibeCodeManager Settings Management
  *
  * These tools are registered as a virtual "vibecode-settings" server and provide
  * functionality for managing VibeCode settings directly from the LLM:

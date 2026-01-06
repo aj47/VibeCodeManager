@@ -800,7 +800,7 @@ class ACPService extends EventEmitter {
     })
 
     // Use the existing tool approval manager to request approval
-    // This integrates with SpeakMCP's existing UI approval flow
+    // This integrates with VibeCodeManager's existing UI approval flow
     const { approvalId, promise } = toolApprovalManager.requestApproval(
       sessionId,
       toolCall.title,
@@ -1055,7 +1055,7 @@ class ACPService extends EventEmitter {
         },
         clientInfo: {
           name: "vibecodemanager",
-          title: "SpeakMCP",
+          title: "VibeCodeManager",
           version: "1.0.0",
         },
       }) as { protocolVersion?: number; agentCapabilities?: unknown }

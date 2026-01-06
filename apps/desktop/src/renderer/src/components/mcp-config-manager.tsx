@@ -2459,7 +2459,7 @@ export function MCPConfigManager({
                               <div className="text-sm">
                                 <span className="font-medium text-muted-foreground">Type:</span>{" "}
                                 <span className="text-xs text-muted-foreground">
-                                  Built-in SpeakMCP settings tools (always available)
+                                  Built-in VibeCodeManager settings tools (always available)
                                 </span>
                               </div>
                             ) : serverConfig && (

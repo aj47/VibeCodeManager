@@ -120,7 +120,7 @@ export const builtinToolDefinitions: BuiltinToolDefinition[] = [
   },
   {
     name: `${BUILTIN_SERVER_NAME}:get_settings`,
-    description: "Get the current status of SpeakMCP feature toggles including post-processing, TTS (text-to-speech), and tool approval settings.",
+    description: "Get the current status of VibeCodeManager feature toggles including post-processing, TTS (text-to-speech), and tool approval settings.",
     inputSchema: {
       type: "object",
       properties: {},

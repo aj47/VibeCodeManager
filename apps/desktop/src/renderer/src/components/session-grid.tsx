@@ -137,7 +137,7 @@ export function SessionTileWrapper({
       // Use try/catch to handle restricted environments where localStorage may throw
       let hasPersistedSize = false
       try {
-        const persistedKey = "speakmcp-resizable-session-tile"
+        const persistedKey = "vibecodemanager-resizable-session-tile"
         hasPersistedSize = localStorage.getItem(persistedKey) !== null
       } catch {
         // Storage unavailable, fall back to default behavior
