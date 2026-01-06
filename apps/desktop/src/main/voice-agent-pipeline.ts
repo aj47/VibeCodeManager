@@ -45,7 +45,7 @@ export interface VoiceCommandOptions {
 /**
  * Find the best available Claude Code agent (excludes internal agents)
  */
-function findClaudeCodeAgent(): string | null {
+export function findClaudeCodeAgent(): string | null {
   const config = configStore.get()
   const agents = config.acpAgents || []
 

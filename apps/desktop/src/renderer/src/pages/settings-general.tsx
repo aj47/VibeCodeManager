@@ -814,6 +814,34 @@ export function Component() {
           </Control>
         </ControlGroup>
 
+        {/* Interview Mode Settings */}
+        <ControlGroup title="Interview Mode">
+          <Control label={<ControlLabel label="Auto-Fetch GitHub Data" tooltip="When enabled, Interview Mode will automatically fetch GitHub issues and pull requests as part of its research. Disable if you don't want GitHub data included in interviews." />} className="px-3">
+            <Switch
+              checked={configQuery.data?.interviewAutoFetchGitHub !== false}
+              onCheckedChange={(value) => saveConfig({ interviewAutoFetchGitHub: value })}
+            />
+          </Control>
+          <Control label={<ControlLabel label="Default Persona" tooltip="The default interviewer persona used when starting a new interview. You can always change this when starting an interview." />} className="px-3">
+            <Select
+              value={configQuery.data?.interviewDefaultPersona || "projectManager"}
+              onValueChange={(value: "projectManager" | "techLead" | "productOwner" | "custom") => {
+                saveConfig({ interviewDefaultPersona: value })
+              }}
+            >
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="projectManager">Project Manager</SelectItem>
+                <SelectItem value="techLead">Tech Lead</SelectItem>
+                <SelectItem value="productOwner">Product Owner</SelectItem>
+                <SelectItem value="custom">Custom</SelectItem>
+              </SelectContent>
+            </Select>
+          </Control>
+        </ControlGroup>
+
         {/* About Section */}
         <ControlGroup title="About">
           <Control label="Version" className="px-3">

@@ -18,7 +18,8 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@rende
 import { useNavigationStore, useAgentStore } from "@renderer/stores"
 import { useConfigQuery } from "@renderer/lib/queries"
 import { ProjectConfig, AgentProgressUpdate } from "@shared/types"
-import { Activity, Users, Clock, Plus, History, FolderOpen } from "lucide-react"
+import { Activity, Users, Clock, Plus, History, FolderOpen, MessageCircleQuestion } from "lucide-react"
+import { tipcClient } from "@renderer/lib/tipc-client"
 import { cn } from "@renderer/lib/utils"
 
 type ProjectStatus = "active" | "waiting" | "error" | "idle"
@@ -113,6 +114,21 @@ function ProjectCard({ project, onNavigate }: ProjectCardProps) {
           isHovered ? "opacity-100" : "opacity-0"
         )}>
           <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => {
+                  e.stopPropagation()
+                  // Start interview for this specific project
+                  tipcClient.startInterviewMode({
+                    persona: "projectManager",
+                    projectId: project.id,
+                  })
+                }}>
+                  <MessageCircleQuestion className="h-3 w-3" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Interview Mode</TooltipContent>
+            </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => {

@@ -595,7 +595,7 @@ export async function processTranscriptWithAgentMode(
   onProgress?: (update: AgentProgressUpdate) => void, // Optional callback for external progress consumers (e.g., SSE)
   profileSnapshot?: SessionProfileSnapshot, // Profile snapshot for session isolation
 ): Promise<AgentModeResponse> {
-  const config = configStore.get()
+  const globalConfig = configStore.get()
 
   // Store IDs for use in progress updates
   const currentConversationId = conversationId
@@ -616,6 +616,19 @@ export async function processTranscriptWithAgentMode(
   // Create session state for this agent run with profile snapshot for isolation
   // Note: createSession is a no-op if the session already exists, so this is safe for resumed sessions
   agentSessionStateManager.createSession(currentSessionId, effectiveProfileSnapshot)
+
+  // Merge profile's modelConfig with global config for session isolation
+  // This allows each session to use the model settings from when it was created
+  const profileModelConfig = effectiveProfileSnapshot?.modelConfig
+  const config = profileModelConfig ? {
+    ...globalConfig,
+    // Apply profile model config overrides if they exist
+    ...(profileModelConfig.mcpToolsProviderId && { mcpToolsProviderId: profileModelConfig.mcpToolsProviderId }),
+    ...(profileModelConfig.mcpToolsOpenaiModel && { mcpToolsOpenaiModel: profileModelConfig.mcpToolsOpenaiModel }),
+    ...(profileModelConfig.mcpToolsGroqModel && { mcpToolsGroqModel: profileModelConfig.mcpToolsGroqModel }),
+    ...(profileModelConfig.mcpToolsGeminiModel && { mcpToolsGeminiModel: profileModelConfig.mcpToolsGeminiModel }),
+    ...(profileModelConfig.currentModelPresetId && { currentModelPresetId: profileModelConfig.currentModelPresetId }),
+  } : globalConfig
 
   // Track context usage info for progress display
   // Declared here so emit() can access it

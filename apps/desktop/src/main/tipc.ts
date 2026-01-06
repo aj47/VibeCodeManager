@@ -63,7 +63,7 @@ import { agentSessionTracker } from "./agent-session-tracker"
 import { messageQueueService } from "./message-queue-service"
 import { profileService } from "./profile-service"
 import { acpService, ACPRunRequest } from "./acp-service"
-import { processVoiceCommand, processTextCommand, isVoicePipelineAvailable } from "./voice-agent-pipeline"
+import { processVoiceCommand, processTextCommand, isVoicePipelineAvailable, findClaudeCodeAgent } from "./voice-agent-pipeline"
 import { workspaceManager, Workspace, WorkspaceSession } from "./workspace-manager"
 
 async function initializeMcpWithProgress(config: Config, sessionId: string): Promise<void> {
@@ -375,6 +375,225 @@ async function processWithAgentMode(
 
   }
 }
+
+// Interview mode agent processing - uses ACP agents (Claude Code) instead of direct LLM API calls
+// This eliminates the need for API keys by using the Claude Code ACP agent
+async function processWithAgentModeForInterview(
+  text: string,
+  conversationId: string,
+  sessionId: string,
+  interviewSystemPrompt: string,
+  projectPath?: string,
+): Promise<string> {
+  const config = configStore.get()
+  const conversationTitle = `Interview: ${text.substring(0, 30)}...`
+
+  // Build conversation history for progress updates
+  const conversationHistory: Array<{
+    role: "user" | "assistant"
+    content: string
+    timestamp: number
+    isComplete?: boolean
+  }> = []
+
+  const userTimestamp = Date.now()
+
+  // Find the Claude Code agent to use
+  const agentName = findClaudeCodeAgent()
+  if (!agentName) {
+    const error = new Error("No Claude Code agent configured. Please add an ACP agent in settings.")
+    agentSessionTracker.errorSession(sessionId, error.message)
+    throw error
+  }
+
+  try {
+    logApp(`[Interview] Processing interview with agent: ${agentName}`)
+
+    // Add user message to conversation history
+    conversationHistory.push({
+      role: "user",
+      content: text,
+      timestamp: userTimestamp,
+      isComplete: true,
+    })
+
+    // Emit initial progress
+    await emitAgentProgress({
+      sessionId,
+      conversationId,
+      conversationTitle,
+      currentIteration: 1,
+      maxIterations: 3,
+      steps: [{
+        id: `agent_${Date.now()}`,
+        type: "tool_call",
+        title: "Starting Interview",
+        description: `Sending to ${agentName}...`,
+        status: "in_progress",
+        timestamp: Date.now(),
+      }],
+      conversationHistory,
+      isComplete: false,
+    })
+
+    // Track streaming content for UI updates
+    let streamingText = ""
+    let lastEmitTime = 0
+    const STREAM_EMIT_THROTTLE_MS = 100
+
+    // Set up listener for ACP session updates to enable streaming
+    const sessionUpdateHandler = (event: {
+      agentName: string
+      sessionId: string
+      content?: Array<{ type: string; text?: string; name?: string }>
+      isComplete?: boolean
+    }) => {
+      // Only handle updates from the agent we're calling
+      if (event.agentName !== agentName) return
+
+      // Extract text content from the update
+      if (event.content && Array.isArray(event.content)) {
+        for (const block of event.content) {
+          if (block.type === "text" && block.text) {
+            streamingText += block.text
+          }
+        }
+      }
+
+      // Throttle UI updates
+      const now = Date.now()
+      if (now - lastEmitTime < STREAM_EMIT_THROTTLE_MS && !event.isComplete) {
+        return
+      }
+      lastEmitTime = now
+
+      // Emit streaming progress to UI
+      if (streamingText) {
+        emitAgentProgress({
+          sessionId,
+          conversationId,
+          conversationTitle,
+          currentIteration: 1,
+          maxIterations: 3,
+          steps: [{
+            id: `agent_streaming_${Date.now()}`,
+            type: "tool_call",
+            title: "Interview in progress",
+            description: "Receiving response...",
+            status: "in_progress",
+            timestamp: Date.now(),
+          }],
+          conversationHistory: [
+            ...conversationHistory,
+            {
+              role: "assistant" as const,
+              content: streamingText,
+              timestamp: Date.now(),
+              isComplete: false,
+            }
+          ],
+          streamingContent: {
+            text: streamingText,
+            isStreaming: !event.isComplete,
+          },
+          isComplete: false,
+        }).catch(err => {
+          logApp(`[Interview] Failed to emit streaming progress: ${err}`)
+        })
+      }
+    }
+
+    // Register the listener
+    acpService.on("sessionUpdate", sessionUpdateHandler)
+
+    let response: string
+    try {
+      // Build context with the interview system prompt
+      // The system prompt tells Claude Code how to behave as an interviewer
+      const contextWithPrompt = `${interviewSystemPrompt}\n\n${projectPath ? `Working directory: ${projectPath}` : ""}`
+
+      const agentResponse = await acpService.runTask({
+        agentName,
+        input: text,
+        cwd: projectPath,
+        context: contextWithPrompt,
+      })
+
+      if (!agentResponse.success) {
+        throw new Error(agentResponse.error || "Agent returned unsuccessful response")
+      }
+
+      // Use accumulated streaming content if available, otherwise use final response
+      response = streamingText || agentResponse.result || "No response from agent"
+      logApp(`[Interview] Got response: ${response.substring(0, 100)}...`)
+    } finally {
+      // Always clean up the listener
+      acpService.off("sessionUpdate", sessionUpdateHandler)
+    }
+
+    // Add assistant response to conversation history
+    conversationHistory.push({
+      role: "assistant",
+      content: response,
+      timestamp: Date.now(),
+      isComplete: true,
+    })
+
+    // Mark complete with full conversation history
+    await emitAgentProgress({
+      sessionId,
+      conversationId,
+      conversationTitle,
+      currentIteration: 3,
+      maxIterations: 3,
+      steps: [{
+        id: `complete_${Date.now()}`,
+        type: "thinking",
+        title: "Interview Complete",
+        description: "Interview session started successfully",
+        status: "completed",
+        timestamp: Date.now(),
+      }],
+      conversationHistory,
+      isComplete: true,
+      finalContent: response,
+    })
+
+    agentSessionTracker.completeSession(sessionId, "Interview started successfully")
+
+    return response
+  } catch (error) {
+    // Mark session as errored
+    const errorMessage = error instanceof Error ? error.message : "Unknown error"
+    agentSessionTracker.errorSession(sessionId, errorMessage)
+
+    // Emit error progress update
+    await emitAgentProgress({
+      sessionId,
+      conversationId,
+      conversationTitle,
+      currentIteration: 1,
+      maxIterations: 3,
+      steps: [{
+        id: `error_${Date.now()}`,
+        type: "thinking",
+        title: "Interview Error",
+        description: errorMessage,
+        status: "error",
+        timestamp: Date.now(),
+      }],
+      isComplete: true,
+      finalContent: `Interview Error: ${errorMessage}`,
+      conversationHistory: [
+        { role: "user", content: text, timestamp: Date.now() },
+        { role: "assistant", content: `Error: ${errorMessage}`, timestamp: Date.now() }
+      ],
+    })
+
+    throw error
+  }
+}
+
 import { diagnosticsService } from "./diagnostics"
 import { updateTrayIcon } from "./tray"
 import { isAccessibilityGranted } from "./utils"
@@ -1582,6 +1801,119 @@ export const router = {
 
         // Re-throw the error so the caller knows transcription failed
         throw error
+      }
+    }),
+
+  // Start Interview Mode - discovery session with persona-based prompting
+  // Uses ACP agents (Claude Code) instead of direct LLM API calls - no API keys required
+  startInterviewMode: t.procedure
+    .input<{
+      persona: "projectManager" | "techLead" | "productOwner" | "custom"
+      customPrompt?: string
+      projectId?: string  // Optional: scope interview to a specific project
+    }>()
+    .action(async ({ input }) => {
+      const config = configStore.get()
+      const { getInterviewModePrompt } = await import("./system-prompts")
+
+      // Check for Claude Code agent availability (no API keys needed with ACP agents)
+      const agentName = findClaudeCodeAgent()
+      if (!agentName) {
+        throw new Error("Interview Mode requires a Claude Code agent. Please add an ACP agent (like Claude Code) in Settings > ACP Agents.")
+      }
+
+      // Get current profile for session isolation
+      const currentProfile = profileService.getCurrentProfile()
+
+      // Build the interview prompt based on persona
+      const interviewPrompt = getInterviewModePrompt(input.persona, input.customPrompt)
+
+      // Build initial message for the interview
+      let initialMessage = "Start the interview."
+      let projectPath: string | undefined
+
+      // If scoped to a project, include project context
+      if (input.projectId) {
+        const project = config.projects?.find(p => p.id === input.projectId)
+        if (project) {
+          projectPath = project.directories[0]?.path || undefined
+          initialMessage = `Start the interview for the project "${project.name}"${projectPath ? ` located at ${projectPath}` : ""}. Begin by exploring the project structure and asking discovery questions.`
+        }
+      } else {
+        // All projects interview
+        const projectCount = config.projects?.length || 0
+        if (projectCount > 0) {
+          const projectNames = config.projects?.map(p => p.name).join(", ")
+          initialMessage = `Start the interview across all ${projectCount} projects: ${projectNames}. Begin by asking about overall priorities and then explore each project as needed.`
+        }
+      }
+
+      // Add GitHub context instruction if enabled
+      if (config.interviewAutoFetchGitHub !== false) {
+        initialMessage += " Include GitHub issues and pull requests in your research."
+      }
+
+      // Create a new conversation for this interview
+      const conversation = await conversationService.createConversation(
+        initialMessage,
+        "user",
+      )
+
+      // Store interview metadata in conversation
+      await conversationService.addMessageToConversation(
+        conversation.id,
+        `[Interview Mode: ${input.persona}${input.projectId ? ` | Project: ${input.projectId}` : " | All Projects"}]`,
+        "assistant",
+      )
+
+      // Get profile snapshot for session isolation
+      const profileSnapshot: SessionProfileSnapshot | undefined = currentProfile ? {
+        profileId: currentProfile.id,
+        profileName: currentProfile.name,
+        guidelines: currentProfile.guidelines,
+        systemPrompt: interviewPrompt, // Use interview prompt as system prompt
+        mcpServerConfig: currentProfile.mcpServerConfig,
+        modelConfig: currentProfile.modelConfig,
+      } : undefined
+
+      // Start the session with interview mode
+      // The session ID prefix is used to identify interview sessions in the UI
+      const sessionId = agentSessionTracker.startSession(
+        conversation.id,
+        `Interview: ${input.persona}`,
+        false, // Don't start snoozed - we want to show the interview
+        profileSnapshot,
+      )
+
+      // Register the session state for isolation
+      agentSessionStateManager.createSession(sessionId, profileSnapshot)
+
+      // Focus this session in the panel
+      try {
+        getWindowRendererHandlers("panel")?.focusAgentSession.send(sessionId)
+      } catch (e) {
+        logApp("[tipc] Failed to focus interview session:", e)
+      }
+
+      // Show panel window
+      showPanelWindow()
+
+      // Process with ACP agent (Claude Code) using interview system prompt
+      processWithAgentModeForInterview(
+        initialMessage,
+        conversation.id,
+        sessionId,
+        interviewPrompt,
+        projectPath,
+      )
+        .catch((error) => {
+          logLLM("[startInterviewMode] Interview processing error:", error)
+        })
+
+      return {
+        sessionId,
+        conversationId: conversation.id,
+        persona: input.persona,
       }
     }),
 
