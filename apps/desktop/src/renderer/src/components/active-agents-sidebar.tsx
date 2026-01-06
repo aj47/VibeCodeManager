@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
 import { tipcClient, rendererHandlers } from "@renderer/lib/tipc-client"
-import { ChevronDown, ChevronRight, X, Minimize2, Maximize2, Pin, FolderOpen, GitBranch } from "lucide-react"
+import { ChevronDown, ChevronRight, X, Minimize2, Maximize2, Pin, FolderOpen, GitBranch, MessageCircleQuestion } from "lucide-react"
 import { cn } from "@renderer/lib/utils"
 import { useAgentStore, useNavigationStore } from "@renderer/stores"
 import { useConfigQuery } from "@renderer/lib/queries"
@@ -340,6 +340,8 @@ export function ActiveAgentsSidebar() {
     const children = sessionToChildrenMap.get(session.id) || []
     const hasChildren = children.length > 0
     const isCollapsed = collapsedSubAgents.has(session.id)
+    // Detect interview sessions by title prefix (set by startInterviewMode in tipc.ts)
+    const isInterviewSession = session.conversationTitle?.startsWith("Interview:")
 
     return (
       <div key={session.id} className="relative">
@@ -349,6 +351,10 @@ export function ActiveAgentsSidebar() {
             "group relative cursor-pointer rounded-md border px-2 py-1.5 text-xs transition-all",
             hasPendingApproval
               ? "border-amber-500 bg-amber-500/10 ring-1 ring-amber-500/20"
+              : isInterviewSession
+              ? isFocused
+                ? "border-purple-500 bg-purple-500/10 ring-1 ring-purple-500/20"
+                : "border-purple-400/50 bg-purple-500/5 hover:border-purple-400 hover:bg-purple-500/10"
               : isFocused
               ? "border-blue-500 bg-blue-500/10 ring-1 ring-blue-500/20"
               : "border-border/50 bg-card/50 hover:border-border hover:bg-card"
@@ -376,8 +382,12 @@ export function ActiveAgentsSidebar() {
             )}
             {/* Show status after chevron for agents with children */}
             {hasChildren && <StatusIndicator status={status} />}
+            {/* Interview mode indicator */}
+            {isInterviewSession && (
+              <MessageCircleQuestion className="h-2.5 w-2.5 shrink-0 text-purple-500" />
+            )}
             {/* Sub-agent indicator */}
-            {isSubAgent && (
+            {isSubAgent && !isInterviewSession && (
               <GitBranch className="h-2.5 w-2.5 shrink-0 text-muted-foreground" />
             )}
             <span className="text-muted-foreground text-[10px] shrink-0">#{agentNumber}</span>
@@ -587,14 +597,23 @@ export function ActiveAgentsSidebar() {
               <div className="space-y-1 ml-2">
                 {recentSessions.slice(0, 3).map((session) => {
                   const statusLabel = session.status === "stopped" ? "Stopped" : session.status === "error" ? "Error" : "Completed"
+                  const isInterviewSession = session.conversationTitle?.startsWith("Interview:")
                   return (
                     <div
                       key={session.id}
                       onClick={() => handleAgentClick(session)}
-                      className="relative rounded-md border px-2 py-1 text-xs text-muted-foreground bg-card/30 cursor-pointer hover:bg-card/50 hover:border-border transition-all"
+                      className={cn(
+                        "relative rounded-md border px-2 py-1 text-xs text-muted-foreground cursor-pointer transition-all",
+                        isInterviewSession
+                          ? "border-purple-400/30 bg-purple-500/5 hover:border-purple-400/50 hover:bg-purple-500/10"
+                          : "bg-card/30 hover:bg-card/50 hover:border-border"
+                      )}
                     >
                       <div className="flex items-center gap-1.5">
                         <StatusIndicator status={session.status === "error" ? "error" : "idle"} />
+                        {isInterviewSession && (
+                          <MessageCircleQuestion className="h-2.5 w-2.5 shrink-0 text-purple-400" />
+                        )}
                         <p className="flex-1 truncate">{session.conversationTitle}</p>
                         <span className="shrink-0 text-[10px] opacity-70">{statusLabel}</span>
                       </div>
