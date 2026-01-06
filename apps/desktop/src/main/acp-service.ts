@@ -73,6 +73,10 @@ export interface ACPRunRequest {
   mode?: "sync" | "async" | "stream"
   /** Working directory for the agent session */
   cwd?: string
+  /** Parent session ID for routing tool approvals and progress updates back to the correct UI session.
+   * This is the VibeCodeManager session ID (e.g., from interview mode), not the ACP agent's session ID.
+   * When set, tool approvals and progress updates will use this session ID instead of the ACP session ID. */
+  parentSessionId?: string
 }
 
 // ACP Run response
@@ -176,6 +180,9 @@ class ACPService extends EventEmitter {
   private sessionOutputs: Map<string, ACPSessionOutput> = new Map()
   // Counter for generating unique fallback session IDs when sessionId is not provided
   private fallbackSessionCounter = 0
+  // Map ACP session IDs to parent session IDs (e.g., interview session → tool approval routing)
+  // This allows tool approvals and progress updates to be routed to the correct UI session
+  private acpToParentSessionId: Map<string, string> = new Map()
 
   constructor() {
     super()
@@ -783,15 +790,20 @@ class ACPService extends EventEmitter {
     agentName: string,
     params: ACPRequestPermissionRequest
   ): Promise<ACPRequestPermissionResponse> {
-    const { sessionId, toolCall, options } = params
+    const { sessionId: acpSessionId, toolCall, options } = params
+
+    // Use parent session ID if available (e.g., interview session) for routing to the correct UI
+    // This is critical for tool approvals to appear in the correct session in the UI
+    const uiSessionId = this.acpToParentSessionId.get(acpSessionId) || acpSessionId
 
     logApp(`[ACP:${agentName}] Permission request for tool: ${toolCall.title} (id: ${toolCall.toolCallId})`)
+    logApp(`[ACP:${agentName}] ACP session: ${acpSessionId}, UI session: ${uiSessionId}`)
     logApp(`[ACP:${agentName}] Options: ${JSON.stringify(options.map(o => o.name))}`)
 
-    // Emit tool call status update for UI visibility
+    // Emit tool call status update for UI visibility (using UI session ID)
     this.emit("toolCallUpdate", {
       agentName,
-      sessionId,
+      sessionId: uiSessionId,
       toolCall: {
         ...toolCall,
         status: "pending" as ACPToolCallStatus,
@@ -801,15 +813,16 @@ class ACPService extends EventEmitter {
 
     // Use the existing tool approval manager to request approval
     // This integrates with VibeCodeManager's existing UI approval flow
+    // IMPORTANT: Use uiSessionId so the approval appears in the correct session (e.g., interview)
     const { approvalId, promise } = toolApprovalManager.requestApproval(
-      sessionId,
+      uiSessionId,
       toolCall.title,
       toolCall.rawInput
     )
 
-    // Emit progress update to show pending approval in UI
+    // Emit progress update to show pending approval in UI (using UI session ID)
     await emitAgentProgress({
-      sessionId,
+      sessionId: uiSessionId,
       currentIteration: 0,
       maxIterations: 1,
       steps: [
@@ -838,10 +851,10 @@ class ACPService extends EventEmitter {
     // Wait for user response
     const approved = await promise
 
-    // Emit status update
+    // Emit status update (using UI session ID)
     this.emit("toolCallUpdate", {
       agentName,
-      sessionId,
+      sessionId: uiSessionId,
       toolCall: {
         ...toolCall,
         status: approved ? "running" : "failed",
@@ -1126,7 +1139,7 @@ class ACPService extends EventEmitter {
    * 4. Receive session/update notifications for results
    */
   async runTask(request: ACPRunRequest): Promise<ACPRunResponse> {
-    const { agentName, input, context, cwd } = request
+    const { agentName, input, context, cwd, parentSessionId } = request
 
     // Ensure agent is running
     let instance = this.agents.get(agentName)
@@ -1158,6 +1171,14 @@ class ACPService extends EventEmitter {
 
       // Step 2: Create session if needed (pass cwd for project context)
       const sessionId = await this.createSession(agentName, cwd)
+
+      // Step 2.5: Map ACP session ID to parent session ID for tool approval routing
+      // This ensures that tool approvals and progress updates go to the correct UI session
+      // (e.g., the interview session, not the internal ACP session)
+      if (sessionId && parentSessionId) {
+        this.acpToParentSessionId.set(sessionId, parentSessionId)
+        logApp(`[ACP:${agentName}] Mapped ACP session ${sessionId} to parent session ${parentSessionId}`)
+      }
 
       // Format the input text
       const inputText = typeof input === "string" ? input :
@@ -1255,12 +1276,24 @@ class ACPService extends EventEmitter {
 
       logApp(`[ACP:${agentName}] Task result: ${resultMessage.substring(0, 200)}...`)
 
+      // Clean up the ACP session → parent session mapping
+      if (sessionId) {
+        this.acpToParentSessionId.delete(sessionId)
+      }
+
       return {
         success: true,
         result: resultMessage,
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)
+
+      // Clean up the ACP session → parent session mapping on error
+      // Note: We need to get the instance again in case sessionId is not defined in this scope
+      const inst = this.agents.get(agentName)
+      if (inst?.sessionId) {
+        this.acpToParentSessionId.delete(inst.sessionId)
+      }
 
       // Check if this is a "Method not found" error - agent might use different protocol
       if (errorMessage.includes("Method not found")) {

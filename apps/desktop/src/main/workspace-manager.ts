@@ -271,6 +271,8 @@ class WorkspaceManager extends EventEmitter {
       agentName,
       input: command,
       context: `Working directory: ${workspace.path}`,
+      // Pass the workspace session ID so tool approvals are routed to the correct UI session
+      parentSessionId: session?.sessionId,
     })
 
     session!.lastActivity = response.success 

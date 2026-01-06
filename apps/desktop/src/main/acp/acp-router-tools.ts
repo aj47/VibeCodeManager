@@ -543,6 +543,8 @@ export async function handleDelegateToAgent(
           input,
           context: args.context,
           mode: 'sync',
+          // Pass the parent session ID so tool approvals are routed to the correct UI session
+          parentSessionId,
         });
 
         // Register mapping again after task (session may have been created)
@@ -636,6 +638,8 @@ export async function handleDelegateToAgent(
           input,
           context: args.context,
           mode: 'async',
+          // Pass the parent session ID so tool approvals are routed to the correct UI session
+          parentSessionId,
         }).then(
           (result) => {
             // Register mapping after task completes (session should now exist)

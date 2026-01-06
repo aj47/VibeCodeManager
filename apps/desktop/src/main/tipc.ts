@@ -517,6 +517,9 @@ async function processWithAgentModeForInterview(
         input: text,
         cwd: projectPath,
         context: contextWithPrompt,
+        // Pass the interview session ID so tool approvals are routed to the correct UI session
+        // This is critical for tool approval buttons to work in interview mode
+        parentSessionId: sessionId,
       })
 
       if (!agentResponse.success) {

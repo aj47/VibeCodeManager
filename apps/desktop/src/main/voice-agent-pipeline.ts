@@ -545,6 +545,8 @@ export async function processVoiceCommand(
         input: transcript,
         cwd,
         context: cwd ? `Working directory: ${cwd}` : undefined,
+        // Pass the voice session ID so tool approvals are routed to the correct UI session
+        parentSessionId: sessionId,
       })
     } finally {
       // Always clean up the listener
@@ -937,6 +939,8 @@ export async function processTextCommand(
         input: text,
         cwd,
         context: cwd ? `Working directory: ${cwd}` : undefined,
+        // Pass the text session ID so tool approvals are routed to the correct UI session
+        parentSessionId: sessionId,
       })
 
       if (!agentResponse.success) {
