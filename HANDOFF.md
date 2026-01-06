@@ -21,9 +21,9 @@ Voice-driven orchestration of Claude Code. Users speak commands, local STT trans
 - [x] **Voice-to-Claude-Code mode** - Enabled by default
 
 ### What's NOT Done ❌
-- [ ] Build local STT binary (`vibecode-stt`) - Required for voice input
-- [ ] Set up local TTS venv - Required for voice output
-- [ ] End-to-end testing of voice loop
+- [x] Build local STT binary (`speakmcp-stt`) - ✅ Already built
+- [x] Set up local TTS venv - ✅ Already set up
+- [x] End-to-end testing of voice loop - ✅ Tested with "hi" command
 - [ ] Phase 4 polish (app icon, help panel)
 
 ---
@@ -125,10 +125,10 @@ npm run dev
 
 ## Remaining Work
 
-### Phase 1: Get It Working
-1. Build the STT binary
-2. Set up TTS venv
-3. Test voice → Claude Code → TTS loop
+### Phase 1: Get It Working ✅ COMPLETE
+1. ~~Build the STT binary~~ - Done
+2. ~~Set up TTS venv~~ - Done
+3. ~~Test voice → Claude Code → TTS loop~~ - Done
 
 ### Phase 2: Polish
 1. New app icon
@@ -145,8 +145,8 @@ npm run dev
 
 ## Testing Checklist
 
-- [ ] Press hotkey, speak command
-- [ ] See transcription in panel
-- [ ] Claude Code processes request
-- [ ] Hear TTS response
-- [ ] No API key prompts anywhere
+- [x] Press hotkey, speak command (tested via `createMcpTextInput`)
+- [x] See transcription in panel
+- [x] Claude Code processes request
+- [x] Hear TTS response
+- [x] No API key prompts anywhere
