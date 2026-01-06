@@ -1,7 +1,7 @@
-import { createBrowserRouter } from "react-router-dom"
+import { createHashRouter } from "react-router-dom"
 
-export const router: ReturnType<typeof createBrowserRouter> =
-  createBrowserRouter([
+export const router: ReturnType<typeof createHashRouter> =
+  createHashRouter([
     {
       path: "/",
       lazy: () => import("./components/app-layout"),
@@ -9,6 +9,10 @@ export const router: ReturnType<typeof createBrowserRouter> =
         // Level 1: Project Dashboard (all projects overview)
         {
           path: "",
+          lazy: () => import("./components/project-dashboard"),
+        },
+        {
+          path: "dashboard",
           lazy: () => import("./components/project-dashboard"),
         },
         // Level 2: Project View (single project with all agents)

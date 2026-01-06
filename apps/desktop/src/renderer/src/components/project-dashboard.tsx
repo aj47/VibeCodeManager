@@ -9,7 +9,8 @@
  * - Progress bar (if task in progress)
  */
 
-import React, { useMemo } from "react"
+import React, { useMemo, useCallback } from "react"
+import { useNavigate } from "react-router-dom"
 import { Card, CardContent } from "@renderer/components/ui/card"
 import { Badge } from "@renderer/components/ui/badge"
 import { Button } from "@renderer/components/ui/button"
@@ -142,11 +143,18 @@ function ProjectCard({ project, onNavigate }: ProjectCardProps) {
 }
 
 export function ProjectDashboard() {
+  const navigate = useNavigate()
   const configQuery = useConfigQuery()
-  const navigateToProject = useNavigationStore((s) => s.navigateToProject)
+  const navigateToProjectStore = useNavigationStore((s) => s.navigateToProject)
   const agentProgressById = useAgentStore((s) => s.agentProgressById)
 
   const projects = configQuery.data?.projects || []
+
+  // Navigate to project view - updates both store and router
+  const handleNavigateToProject = useCallback((projectId: string) => {
+    navigateToProjectStore(projectId)
+    navigate(`/project/${projectId}`)
+  }, [navigateToProjectStore, navigate])
 
   // Calculate project status based on agents
   const projectsWithStatus = useMemo((): ProjectWithStatus[] => {
@@ -252,7 +260,7 @@ export function ProjectDashboard() {
           <ProjectCard
             key={project.id}
             project={project}
-            onNavigate={navigateToProject}
+            onNavigate={handleNavigateToProject}
           />
         ))}
       </div>

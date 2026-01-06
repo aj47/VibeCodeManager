@@ -722,7 +722,9 @@ export type Config = {
   // Message Queue Configuration - when enabled, users can queue messages while agent is processing
   mcpMessageQueueEnabled?: boolean
 
-
+  // Interview Mode Configuration
+  interviewAutoFetchGitHub?: boolean  // Auto-fetch GitHub issues/PRs during interview
+  interviewDefaultPersona?: InterviewPersona  // Default persona for new interviews
 
 	  // Remote Server Configuration
 	  remoteServerEnabled?: boolean
@@ -758,6 +760,16 @@ export type Config = {
   }
 }
 
+
+// Interview Mode Types
+export type InterviewPersona = 'projectManager' | 'techLead' | 'productOwner' | 'custom'
+
+export interface InterviewSessionMetadata {
+  isInterviewMode: boolean
+  persona: InterviewPersona
+  customPrompt?: string
+  projectId?: string  // If scoped to a single project
+}
 
 // MCP Elicitation Types (Protocol 2025-11-25)
 export interface ElicitationFormField {

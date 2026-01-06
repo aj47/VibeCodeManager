@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from "react"
+import React, { useState, useEffect, useMemo, useCallback } from "react"
+import { useNavigate } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
 import { tipcClient, rendererHandlers } from "@renderer/lib/tipc-client"
 import { ChevronDown, ChevronRight, X, Minimize2, Maximize2, Pin, FolderOpen, GitBranch } from "lucide-react"
@@ -105,7 +106,14 @@ export function ActiveAgentsSidebar() {
   const togglePinSession = useAgentStore((s) => s.togglePinSession)
 
   const navigateToAgent = useNavigationStore((s) => s.navigateToAgent)
-  const navigateToProject = useNavigationStore((s) => s.navigateToProject)
+  const navigateToProjectStore = useNavigationStore((s) => s.navigateToProject)
+  const navigate = useNavigate()
+
+  // Navigate to project - updates both store and router
+  const handleNavigateToProject = useCallback((projectId: string) => {
+    navigateToProjectStore(projectId)
+    navigate(`/project/${projectId}`)
+  }, [navigateToProjectStore, navigate])
 
   const configQuery = useConfigQuery()
   const projects = configQuery.data?.projects || []
@@ -452,21 +460,32 @@ export function ActiveAgentsSidebar() {
 
     return (
       <div key={project.id} className="mt-2">
-        <button
-          onClick={() => toggleProjectCollapse(project.id)}
-          className="flex w-full items-center gap-1.5 px-1 py-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
-        >
-          {isCollapsed ? (
-            <ChevronRight className="h-3 w-3 shrink-0" />
-          ) : (
-            <ChevronDown className="h-3 w-3 shrink-0" />
-          )}
-          <FolderOpen className="h-3 w-3 shrink-0" />
-          <span className="truncate flex-1 text-left">{project.name}</span>
+        <div className="flex w-full items-center gap-1.5 px-1 py-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              toggleProjectCollapse(project.id)
+            }}
+            className="shrink-0 hover:bg-accent rounded p-0.5 transition-colors"
+            aria-label={isCollapsed ? "Expand project" : "Collapse project"}
+          >
+            {isCollapsed ? (
+              <ChevronRight className="h-3 w-3" />
+            ) : (
+              <ChevronDown className="h-3 w-3" />
+            )}
+          </button>
+          <button
+            onClick={() => handleNavigateToProject(project.id)}
+            className="flex flex-1 items-center gap-1.5 min-w-0 hover:text-foreground transition-colors"
+          >
+            <FolderOpen className="h-3 w-3 shrink-0" />
+            <span className="truncate flex-1 text-left">{project.name}</span>
+          </button>
           <span className="shrink-0 text-[10px] text-muted-foreground">
             [{agentCount} agent{agentCount !== 1 ? "s" : ""}]
           </span>
-        </button>
+        </div>
         {!isCollapsed && agentCount > 0 && (
           <div className="ml-2 mt-1 space-y-1 border-l border-border/50 pl-2">
             {agents.map(({ session, agentNumber }) =>

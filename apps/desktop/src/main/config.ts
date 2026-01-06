@@ -140,6 +140,10 @@ const getConfig = () => {
     // Message queue - when enabled, users can queue messages while agent is processing (enabled by default)
     mcpMessageQueueEnabled: true,
 
+    // Interview Mode defaults
+    interviewAutoFetchGitHub: true, // Auto-fetch GitHub issues/PRs during interview
+    interviewDefaultPersona: "projectManager" as const,
+
 	    // Remote Server defaults
 	    remoteServerEnabled: false,
 	    remoteServerPort: 3210,

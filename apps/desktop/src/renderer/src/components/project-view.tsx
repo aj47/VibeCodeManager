@@ -8,7 +8,8 @@
  * - Button to spawn new agent
  */
 
-import React, { useMemo, useState } from "react"
+import React, { useMemo, useState, useCallback } from "react"
+import { useNavigate, useParams } from "react-router-dom"
 import { Card, CardContent } from "@renderer/components/ui/card"
 import { Badge } from "@renderer/components/ui/badge"
 import { Button } from "@renderer/components/ui/button"
@@ -164,11 +165,22 @@ interface ProjectViewProps {
 const COLLAPSED_AGENTS_KEY = 'project-view-collapsed-agents'
 
 export function ProjectView({ projectId: propProjectId }: ProjectViewProps) {
+  const navigate = useNavigate()
+  const params = useParams<{ projectId: string }>()
   const configQuery = useConfigQuery()
   const focusedProjectId = useFocusedProjectId()
-  const goBack = useNavigationStore((s) => s.goBack)
-  const navigateToAgent = useNavigationStore((s) => s.navigateToAgent)
+  const goBackStore = useNavigationStore((s) => s.goBack)
+  const navigateToAgentStore = useNavigationStore((s) => s.navigateToAgent)
   const agentProgressById = useAgentStore((s) => s.agentProgressById)
+
+  // Use projectId from props, URL params, or store
+  const projectId = propProjectId || params.projectId || focusedProjectId
+
+  // Navigate back - updates both store and router
+  const goBack = useCallback(() => {
+    goBackStore()
+    navigate('/dashboard')
+  }, [goBackStore, navigate])
 
   // Track collapsed agents for sub-agent trees
   const [collapsedAgents, setCollapsedAgents] = useState<Set<string>>(() => {
@@ -198,7 +210,6 @@ export function ProjectView({ projectId: propProjectId }: ProjectViewProps) {
     })
   }
 
-  const projectId = propProjectId || focusedProjectId
   const projects = configQuery.data?.projects || []
   const project = projects.find((p) => p.id === projectId)
 
@@ -278,11 +289,12 @@ export function ProjectView({ projectId: propProjectId }: ProjectViewProps) {
     return count
   }, [agents])
 
-  const handleNavigateToAgent = (sessionId: string) => {
+  const handleNavigateToAgent = useCallback((sessionId: string) => {
     if (projectId) {
-      navigateToAgent(projectId, sessionId)
+      navigateToAgentStore(projectId, sessionId)
+      navigate(`/project/${projectId}/agent/${sessionId}`)
     }
-  }
+  }, [projectId, navigateToAgentStore, navigate])
 
   const handleNewAgent = () => {
     // TODO: Implement spawn new agent functionality
